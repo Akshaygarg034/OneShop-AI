@@ -82,7 +82,7 @@ const WELCOME: ChatMessage = {
   timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
 };
 
-const CHIPS = ["Show me plans", "Best camera phone", "Bundle deals", "Headphones"];
+const CHIPS = ["Show me plans", "Best camera phone", "Bundle deals", "Smartphones"];
 
 // ─── History loading skeleton ──────────────────────────────────────────────────
 function HistorySkeleton() {
