@@ -41,6 +41,18 @@ def _price_of(product: Product | None) -> tuple[float, str]:
     return (product.price_onetime or product.price_monthly), "onetime"
 
 
+def _merge_profiles(target: PreferenceProfile, guest: PreferenceProfile) -> PreferenceProfile:
+    """Union list fields, prefer the target's budget unless it's unset."""
+    return PreferenceProfile(
+        budget_monthly_max=target.budget_monthly_max if target.budget_monthly_max is not None
+        else guest.budget_monthly_max,
+        brands_viewed=list(dict.fromkeys(target.brands_viewed + guest.brands_viewed)),
+        features_mentioned=list(dict.fromkeys(target.features_mentioned + guest.features_mentioned)),
+        categories_browsed=list(dict.fromkeys(target.categories_browsed + guest.categories_browsed)),
+        rejected=list(dict.fromkeys(target.rejected + guest.rejected)),
+    )
+
+
 class Session:
     def __init__(self, session_id: str):
         self.session_id = session_id
@@ -216,6 +228,33 @@ class SessionStore:
                 else "Add an accessory to qualify for free shipping."
             ),
         }
+
+    def merge_guest_into_user(self, guest_session_id: str, user_id: str) -> Session:
+        """Called on register/login: fold a guest's history/profile/cart into the
+        session keyed by their permanent user_id, so nothing from the anonymous
+        browsing session is lost once they have an account. From then on the
+        frontend uses user_id as its session_id - the same store, no new concept.
+        """
+        if guest_session_id == user_id:
+            return self.get(user_id)
+
+        guest = self.get(guest_session_id)
+        target = self.get(user_id)
+
+        target.history = target.history + guest.history
+        target.profile = _merge_profiles(target.profile, guest.profile)
+
+        for item in guest.cart.items:
+            for existing in target.cart.items:
+                if existing.product_id == item.product_id:
+                    existing.qty += item.qty
+                    break
+            else:
+                target.cart.items.append(item)
+        self._recompute(target.cart)
+
+        self.save(target)
+        return target
 
     def checkout(self, session_id: str) -> dict:
         session = self.get(session_id)

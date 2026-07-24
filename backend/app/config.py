@@ -42,6 +42,12 @@ SESSION_BACKEND = os.getenv("SESSION_BACKEND", "auto")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")   # service_role key (POC: RLS disabled)
 
+# Auth (P4). Same backend selection as sessions - Supabase `users` table if
+# configured, else an in-memory store. Tokens are self-contained (hmac-signed),
+# so no server-side token storage/dependency is needed.
+AUTH_SECRET = os.getenv("AUTH_SECRET", "dev-insecure-secret-change-me")
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 7)))  # 7 days
+
 # Path to the catalog file (P2 owns the data).
 CATALOG_PATH = os.getenv(
     "CATALOG_PATH",

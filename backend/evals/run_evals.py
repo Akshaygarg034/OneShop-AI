@@ -10,10 +10,14 @@ if anything fails, so this doubles as a CI gate. Grouped by what it proves:
   CONVERSATION  - clarifies when vague, populates receipts
   PERSONALIZATION - ranking adapts after the user rejects a brand
   CART          - cart math + free-shipping + checkout are correct
+  AUTH          - register/login work and a guest cart survives login
 """
 import sys
+import uuid
 
 from app.agents.graph import run_pipeline
+from app.auth.security import hash_password, verify_password
+from app.auth.users_store import UserStore
 from app.retrieval.catalog import get_product, load_catalog
 from app.session.store import Session, SessionStore
 
@@ -168,6 +172,42 @@ def t_checkout():
     assert summary["status"] == "confirmed", "checkout should confirm the order"
     assert summary["order_id"], "checkout should return an order id"
     assert store.cart_summary("c")["item_count"] == 0, "cart should be empty after checkout"
+
+
+# --------------------------------------------------------------------------- #
+# AUTH - accounts + guest-to-user continuity                                  #
+# --------------------------------------------------------------------------- #
+@case("AUTH", "password hashing round-trips and rejects wrong passwords")
+def t_password_hash():
+    hashed = hash_password("correct-horse-battery")
+    assert verify_password("correct-horse-battery", hashed)
+    assert not verify_password("wrong-password", hashed)
+
+
+@case("AUTH", "duplicate email registration is rejected")
+def t_duplicate_email():
+    user_store = UserStore()
+    user_store.create("dup@example.com", hash_password("pw1"))
+    try:
+        user_store.create("dup@example.com", hash_password("pw2"))
+        assert False, "expected a duplicate email to raise"
+    except ValueError:
+        pass
+
+
+@case("AUTH", "a guest's cart survives merging into their new user_id")
+def t_merge_on_register():
+    sessions = SessionStore()
+    guest_id = f"guest-{uuid.uuid4().hex[:8]}"
+    sessions.add_to_cart(guest_id, "phone_pixel8")
+    sessions.add_to_cart(guest_id, "accessory_case")
+
+    user_id = uuid.uuid4().hex
+    merged = sessions.merge_guest_into_user(guest_id, user_id)
+
+    assert merged.session_id == user_id
+    assert len(merged.cart.items) == 2, "guest cart items should carry over"
+    assert merged.cart.subtotal == 15.0 and merged.cart.monthly_total == 15.0
 
 
 def main():

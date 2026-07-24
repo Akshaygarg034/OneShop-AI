@@ -11,7 +11,7 @@ Then open http://localhost:8000/docs
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import cart, catalog, chat
+from app.api import auth, cart, catalog, chat
 
 app = FastAPI(title="Telekom Smart Shopping Assistant")
 
@@ -27,6 +27,7 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(cart.router)
 app.include_router(catalog.router)
+app.include_router(auth.router)
 
 
 @app.get("/health")
