@@ -40,15 +40,16 @@ class SkipCase(Exception):
 
 def _run(message: str):
     """One-shot: fresh session, single message."""
-    return run_pipeline(message, Session("eval"), "eval-thread")
+    return run_pipeline(message, Session("eval"), uuid.uuid4().hex)
 
 
 def _conversation():
     """Multi-turn: one persistent session + thread, returns a say() that advances it."""
     session = Session("eval-convo")
+    conversation_id = uuid.uuid4().hex
 
     def say(message: str):
-        return run_pipeline(message, session, "eval-convo-thread")
+        return run_pipeline(message, session, conversation_id)
 
     return session, say
 

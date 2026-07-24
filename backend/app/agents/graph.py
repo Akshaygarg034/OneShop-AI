@@ -54,6 +54,21 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     evaluated = filter_eligible(candidates, intent)
     eligible = [e for e in evaluated if e.eligible]
 
+    # 3a. Scope to what THIS turn actually asked for. retrieve() only softly
+    # biases toward intent.product_types (a +2 score bump among several other
+    # signals) - it never hard-filters. Without this, a session-wide learned
+    # preference (e.g. "camera" from an earlier phone question) keeps
+    # outscoring the very plans/accessories the user is asking about right
+    # now, because rank_products()'s `preference` signal reads the whole
+    # accumulated profile, not just this message. That produced the same 1-2
+    # phones as the top pick regardless of what was actually asked. A budget
+    # or feature mentioned earlier should keep biasing ranking WITHIN a
+    # category; it should never hijack the category itself.
+    if intent.product_types:
+        scoped = [e for e in eligible if e.product.type.value in intent.product_types]
+        if scoped:  # never narrow to nothing - fall back to the full set
+            eligible = scoped
+
     # 4. Rank + explain + nudge (P3)
     recs, nba = recommend(eligible, session.profile, session.cart)
 
