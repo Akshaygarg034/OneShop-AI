@@ -19,6 +19,7 @@ export interface Product {
 export interface CartLineItem {
   product: Product;
   qty: number;
+  billing: "onetime" | "monthly";
 }
 
 export interface AppNotification {

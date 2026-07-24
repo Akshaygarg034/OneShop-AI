@@ -11,6 +11,8 @@ functions stay the same - only the wiring changes.
 
 GUARDRAIL enforced here: recommendations may only reference eligible product ids.
 """
+import uuid
+
 from app.agents.intent import extract_intent
 from app.agents.profile import update_profile
 from app.contracts.models import ChatResponse, Receipts
@@ -19,20 +21,27 @@ from app.recommend.recommender import recommend
 from app.retrieval.retriever import retrieve
 
 
-def run_pipeline(message: str, session) -> ChatResponse:
+def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
+    # Each conversation is a separate thread with its own history for AI context.
+    # Profile is global across conversations (accumulated learnings persist).
+    conv_history = session.get_conversation(conversation_id)
+
     # 1. Understand + learn (P1)
-    intent = extract_intent(message, session.history, session.profile)
+    intent = extract_intent(message, conv_history, session.profile)
     session.profile = update_profile(session.profile, message, intent)
     intent.profile = session.profile
 
     # 1a. Ask instead of guess (trust behaviour)
     if intent.clarification_needed:
+        conv_history.append({"role": "user", "content": message})
+        conv_history.append({"role": "assistant", "content": intent.clarification_question, "recommendations": []})
         return ChatResponse(
             reply_text=intent.clarification_question,
             recommendations=[],
             nba=[],
             cart=session.cart,
             receipts=Receipts(),
+            conversation_id=conversation_id,
         )
 
     # 2. Find candidates (P2)
@@ -57,9 +66,13 @@ def run_pipeline(message: str, session) -> ChatResponse:
         shown_ids=[r.product_id for r in recs],
     )
 
-    # record turn
-    session.history.append({"role": "user", "content": message})
-    session.history.append({"role": "assistant", "content": reply})
+    # Record turn; persist recommendations so the frontend can restore product cards from history.
+    conv_history.append({"role": "user", "content": message})
+    conv_history.append({
+        "role": "assistant",
+        "content": reply,
+        "recommendations": [r.model_dump() for r in recs],
+    })
 
     return ChatResponse(
         reply_text=reply,
@@ -67,6 +80,7 @@ def run_pipeline(message: str, session) -> ChatResponse:
         nba=nba,
         cart=session.cart,
         receipts=receipts,
+        conversation_id=conversation_id,
     )
 
 

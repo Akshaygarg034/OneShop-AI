@@ -5,7 +5,6 @@ import { useAuth } from "../../auth/AuthContext";
 import { getProducts } from "../../api/mockApi";
 import { formatEUR } from "../../lib/format";
 import { isAiRecommended } from "../../lib/products";
-import { AuthModal } from "../AuthModal";
 import type { Product } from "../../types";
 
 const categories = ["All", "Phones", "Plans", "Accessories", "Bundles", "Smart Home"];
@@ -111,7 +110,6 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [whyProduct, setWhyProduct] = useState<Product | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
   const { addItem, removeItem, isInCart } = useCart();
   const { user } = useAuth();
 
@@ -136,7 +134,6 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-8 sm:py-10" style={{ color: "var(--foreground)" }}>
       {whyProduct && <WhyModal product={whyProduct} onClose={() => setWhyProduct(null)} />}
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
       {/* Hero */}
       <div style={{ marginBottom: 28 }}>
@@ -212,9 +209,7 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((product) => {
-            // Never show "In Cart" state to logged-out users — their cart is empty
-            // anyway, but guard defensively so stale state never leaks into the UI.
-            const inCart = !!user && isInCart(product.id);
+            const inCart = isInCart(product.id);
             return (
               <div
                 key={product.id}
@@ -344,7 +339,6 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                     <button
                       disabled={!product.inStock}
                       onClick={() => {
-                        if (!user) { setAuthOpen(true); return; }
                         inCart ? removeItem(product.id) : addItem(product);
                       }}
                       style={{

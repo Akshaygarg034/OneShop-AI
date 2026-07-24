@@ -27,7 +27,7 @@ export default function App() {
               />
               <div style={{ background: "var(--primary)", padding: "9px 24px", textAlign: "center" }}>
                 <p style={{ color: "#fff", fontWeight: 700, fontSize: 11.5, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                  Smarter Shopping, Powered by AI
+                  Smarter Shopping
                 </p>
               </div>
             </div>

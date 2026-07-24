@@ -110,18 +110,26 @@ class Receipts(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    conversation_id: Optional[str] = None  # omit to start a new conversation
 
 
 class ChatHistoryMessage(BaseModel):
     role: str
     content: str
+    recommendations: list[dict] = Field(default_factory=list)  # persisted so product cards can be restored
 
 
 class ChatHistoryResponse(BaseModel):
-    """Persisted conversation for a session - so a returning/logged-in user's
-    history can be shown again (see GET /chat/history)."""
+    """Persisted conversation for a specific conversation thread."""
     session_id: str
+    conversation_id: str = ""
     history: list[ChatHistoryMessage] = Field(default_factory=list)
+
+
+class ChatConversationsResponse(BaseModel):
+    """List of conversation IDs under a session."""
+    session_id: str
+    conversation_ids: list[str] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):
@@ -131,3 +139,4 @@ class ChatResponse(BaseModel):
     nba: list[str] = Field(default_factory=list)          # next-best-action nudges
     cart: Cart
     receipts: Receipts = Field(default_factory=Receipts)
+    conversation_id: str = ""                              # echoed back so client can track the thread
