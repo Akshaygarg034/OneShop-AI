@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import {
   Send, Mic, MicOff, Sparkles, ShoppingCart, X,
-  Maximize2, Minimize2, Check, SquarePen, ChevronLeft, Plus, Trash2,
+  Maximize2, Minimize2, Check, SquarePen, History, ChevronLeft, Plus, Trash2,
 } from "lucide-react";
 import { useCart } from "../cart/CartContext";
 import { useAuth } from "../auth/AuthContext";
@@ -808,8 +808,11 @@ export function FloatingChat() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 1 }}>
-                <IconBtn title="Conversations" onClick={() => setView("list")}>
+                <IconBtn title="New chat" onClick={startNewChat}>
                   <SquarePen size={14} />
+                </IconBtn>
+                <IconBtn title="History" onClick={() => setView("list")}>
+                  <History size={14} />
                 </IconBtn>
                 <IconBtn
                   title={dock === "right" ? "Move to left" : "Move to right"}
