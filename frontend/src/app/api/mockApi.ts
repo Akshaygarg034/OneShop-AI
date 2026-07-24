@@ -2,7 +2,7 @@ import type {
   Product, AppNotification, LiveActivity, RegisterPayload, LoginPayload, AuthUser,
   ShippingDetails, PaymentDetails,
 } from "../types";
-import { getSessionId, setSessionId, getAuthToken, setAuthToken } from "./session";
+import { getSessionId, setSessionId, getAuthToken, setAuthToken, clearSessionId } from "./session";
 
 /**
  * Real API client. Kept the filename/exports from the original Figma mock so no
@@ -61,9 +61,8 @@ function titleCase(s: string): string {
 }
 
 function placeholderImage(name: string): string {
-  // No product photography exists in the catalog - a clearly-a-placeholder
-  // image, not a fabricated "real photo" of a device we don't have art for.
-  return `https://placehold.co/400x400/1a1a2e/ffffff?text=${encodeURIComponent(name)}`;
+  const initials = name.split(" ").slice(0, 2).map((w) => w[0] || "").join("").toUpperCase();
+  return `https://placehold.co/400x280/f1f5f9/94a3b8?text=${encodeURIComponent(initials)}`;
 }
 
 function clampScore(n: number): number {
@@ -234,8 +233,9 @@ export async function loginUser(payload: LoginPayload): Promise<AuthUser> {
 
 export function logoutUser(): void {
   setAuthToken(null);
-  // Deliberately keep session_id as-is (it's the user_id now) so re-login on
-  // this browser continues the same cart/history.
+  // Reset to a fresh guest session so the logged-out user's cart is not visible
+  // to whoever opens the browser next. Re-login will restore their server-side cart.
+  clearSessionId();
 }
 
 // Restores the logged-in user on page load from a stored token, if any.

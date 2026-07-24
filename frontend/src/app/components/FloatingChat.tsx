@@ -1,99 +1,378 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Send, Mic, MicOff, Sparkles, ShoppingCart, X, Minus,
-  PanelLeftClose, PanelRightClose, Check, Info,
+  Send, Mic, MicOff, Sparkles, ShoppingCart, X,
+  Maximize2, Minimize2, Check,
 } from "lucide-react";
 import { useCart } from "../cart/CartContext";
+import { useAuth } from "../auth/AuthContext";
 import { askAssistant } from "../api/mockApi";
 import { formatEUR } from "../lib/format";
 import { useSpeechRecognition } from "../lib/useSpeechRecognition";
+import { AuthModal } from "./AuthModal";
 import type { ChatMessage, Product } from "../types";
 
 type DockSide = "left" | "right";
+type ChatSize = "compact" | "expanded";
 
-const initialMessages: ChatMessage[] = [
-  {
-    id: 1,
-    role: "assistant",
-    text: "Hi — I'm your OneShop assistant. Ask about phones, plans, bundles, or accessories and I'll find options from the catalog.",
-    timestamp: "09:42",
-  },
-];
+const DOCK_KEY = "oneshop-chat-dock";
 
-const suggestions = ["Show me plans", "Best camera phone", "Any bundle deals?", "Headphones"];
+const WELCOME: ChatMessage = {
+  id: 1,
+  role: "assistant",
+  text: "Hi — I'm your OneShop AI assistant. Ask about phones, plans, bundles, or accessories and I'll find the best match for you.",
+  timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+};
 
-const DOCK_STORAGE_KEY = "oneshop-chat-dock";
+const CHIPS = ["Show me plans", "Best camera phone", "Bundle deals", "Headphones"];
 
-const WhyPanel = ({ product, onClose }: { product: Product; onClose: () => void }) => (
-  <div
-    style={{
-      background: "var(--surface)",
-      border: "1px solid rgba(var(--primary-rgb),0.2)",
-      borderRadius: 12,
-      padding: "10px 12px",
-      marginTop: 4,
-    }}
-  >
-    <div className="flex items-center justify-between mb-2">
-      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-        Why recommended
-      </span>
-      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 0, display: "flex" }}>
-        <X size={12} />
-      </button>
+// ─── Typing indicator ──────────────────────────────────────────────────────────
+function TypingIndicator() {
+  return (
+    <div style={{ display: "flex", paddingTop: 2 }}>
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "10px 14px",
+          background: "var(--muted)",
+          borderRadius: "4px 14px 14px 14px",
+        }}
+      >
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: "50%",
+              background: "var(--muted-foreground)",
+              animation: `dot-bounce 1.3s ${i * 0.18}s ease-in-out infinite`,
+            }}
+          />
+        ))}
+      </div>
     </div>
-    <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-      {product.reasons.slice(0, 3).map((reason, i) => (
-        <li key={i} className="flex gap-2" style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.45 }}>
-          <Check size={11} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />
-          {reason}
-        </li>
-      ))}
-    </ul>
-  </div>
+  );
+}
+
+// ─── Product card ──────────────────────────────────────────────────────────────
+function ProductCard({
+  product,
+  expanded,
+  onAdd,
+  onWhy,
+  inCart,
+  whyOpen,
+  showWhy,
+}: {
+  product: Product;
+  expanded: boolean;
+  onAdd: () => void;
+  onWhy: () => void;
+  inCart: boolean;
+  whyOpen: boolean;
+  showWhy: boolean;
+}) {
+  const hasWhy = showWhy && product.reasons.length > 0;
+
+  return (
+    <div
+      style={{
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        overflow: "hidden",
+        // compact: fixed 168px width in a horizontal scroll
+        // expanded: fill half the row (2-column grid)
+        flexShrink: expanded ? undefined : 0,
+        flex: expanded ? "1 1 calc(50% - 4px)" : undefined,
+        width: expanded ? undefined : 168,
+        minWidth: expanded ? 172 : 168,
+        maxWidth: expanded ? "calc(50% - 4px)" : 168,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+        transition: "box-shadow 0.2s",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.09)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"; }}
+    >
+      {/* Product image — no overlay badges */}
+      <div
+        style={{
+          height: expanded ? 126 : 96,
+          overflow: "hidden",
+          background: "var(--muted)",
+        }}
+      >
+        <img
+          src={product.image}
+          alt={product.name}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+      </div>
+
+      <div style={{ padding: "10px 11px 12px" }}>
+        {/* Category */}
+        <p
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            color: "var(--muted-foreground)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: 3,
+          }}
+        >
+          {product.category}
+        </p>
+
+        {/* Name */}
+        <p
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "var(--foreground)",
+            lineHeight: 1.35,
+            marginBottom: 5,
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
+          {product.name}
+        </p>
+
+        {/* Price */}
+        <div style={{ marginBottom: 9 }}>
+          <span style={{ fontSize: expanded ? 14 : 13, fontWeight: 700, color: "var(--foreground)" }}>
+            {formatEUR(product.price)}
+          </span>
+          {product.monthlyPrice > 0 && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 400,
+                color: "var(--muted-foreground)",
+                marginLeft: 5,
+              }}
+            >
+              or {formatEUR(product.monthlyPrice)}/mo
+            </span>
+          )}
+        </div>
+
+        {/* Primary CTA */}
+        <button
+          onClick={onAdd}
+          disabled={inCart}
+          style={{
+            width: "100%",
+            padding: expanded ? "8px 10px" : "7px 10px",
+            background: inCart ? "#16A34A" : "var(--primary)",
+            border: "none",
+            borderRadius: 8,
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: inCart ? "default" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 5,
+            letterSpacing: "0.01em",
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => { if (!inCart) (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+        >
+          {inCart ? (
+            <><Check size={11} />Added to cart</>
+          ) : (
+            <><ShoppingCart size={11} />Add to cart</>
+          )}
+        </button>
+
+        {/* Why — text link, not an icon button */}
+        {hasWhy && (
+          <button
+            onClick={onWhy}
+            style={{
+              width: "100%",
+              marginTop: 7,
+              background: "none",
+              border: "none",
+              padding: "2px 0",
+              cursor: "pointer",
+              fontSize: 10,
+              color: whyOpen ? "var(--primary)" : "var(--muted-foreground)",
+              fontWeight: 500,
+              textAlign: "center",
+              textDecoration: "underline",
+              textUnderlineOffset: "2px",
+              textDecorationColor: "currentColor",
+              transition: "color 0.15s",
+            }}
+          >
+            {whyOpen ? "Hide explanation" : "Why this recommendation?"}
+          </button>
+        )}
+
+        {/* Why panel */}
+        {whyOpen && hasWhy && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: "8px 10px",
+              background: "rgba(var(--primary-rgb),0.05)",
+              borderRadius: 8,
+              borderLeft: "2px solid var(--primary)",
+              animation: "why-in 0.14s ease-out",
+            }}
+          >
+            {product.reasons.slice(0, 2).map((reason, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 5,
+                  fontSize: 10,
+                  color: "var(--foreground)",
+                  lineHeight: 1.5,
+                  marginTop: i > 0 ? 4 : 0,
+                }}
+              >
+                <Check size={9} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />
+                {reason}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Small icon button for the header ─────────────────────────────────────────
+function IconBtn({
+  children,
+  title,
+  onClick,
+  danger = false,
+}: {
+  children: React.ReactNode;
+  title: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: 28,
+        height: 28,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: hov ? (danger ? "rgba(239,68,68,0.1)" : "var(--muted)") : "none",
+        border: "none",
+        borderRadius: 7,
+        cursor: "pointer",
+        color: hov && danger ? "#EF4444" : "var(--muted-foreground)",
+        transition: "background 0.12s, color 0.12s",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Chip for dock toggle ──────────────────────────────────────────────────────
+const DockIcon = ({ toLeft }: { toLeft: boolean }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    {toLeft ? <path d="M9 3v18" /> : <path d="M15 3v18" />}
+  </svg>
 );
 
+// ─── Main component ────────────────────────────────────────────────────────────
 export function FloatingChat() {
   const [open, setOpen] = useState(false);
+  const [size, setSize] = useState<ChatSize>("compact");
   const [dock, setDock] = useState<DockSide>(() => {
     if (typeof window === "undefined") return "right";
-    const stored = window.localStorage.getItem(DOCK_STORAGE_KEY);
-    return stored === "left" || stored === "right" ? stored : "right";
+    return (localStorage.getItem(DOCK_KEY) as DockSide) === "left" ? "left" : "right";
   });
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [whyProductId, setWhyProductId] = useState<number | null>(null);
+  const [whyId, setWhyId] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { addItem, isInCart } = useCart();
+  const { user } = useAuth();
+  const { listening, supported: micSupported, toggleListening } = useSpeechRecognition((t) =>
+    setInput((prev) => (prev ? `${prev} ${t}` : t)),
+  );
 
-  const { listening, supported: micSupported, toggleListening } = useSpeechRecognition((transcript) => {
-    setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(DOCK_STORAGE_KEY, dock);
-  }, [dock]);
+  useEffect(() => { localStorage.setItem(DOCK_KEY, dock); }, [dock]);
 
   useEffect(() => {
-    if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (open) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, [messages, typing, open]);
+
+  useEffect(() => {
+    if (size === "expanded")
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 320);
+  }, [size]);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 260);
+  }, [open]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (size === "expanded") setSize("compact");
+      else setOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [size]);
+
+  const handleAdd = useCallback(
+    (p: Product) => {
+      if (!user) { setAuthOpen(true); return; }
+      addItem(p);
+    },
+    [user, addItem],
+  );
 
   const send = (text: string) => {
     if (!text.trim() || typing) return;
-    const userMsg: ChatMessage = {
-      id: Date.now(),
-      role: "user",
-      text,
-      timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    setMessages((prev) => [...prev, { id: Date.now(), role: "user", text, timestamp: ts }]);
     setInput("");
     setTyping(true);
-    setWhyProductId(null);
+    setWhyId(null);
 
     askAssistant(text)
-      .then(({ reply, products }) => {
+      .then(({ reply, products }) =>
         setMessages((prev) => [
           ...prev,
           {
@@ -103,142 +382,201 @@ export function FloatingChat() {
             products,
             timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
           },
-        ]);
-      })
-      .catch(() => {
+        ]),
+      )
+      .catch(() =>
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now() + 1,
             role: "assistant",
-            text: "Sorry, I couldn't reach the recommendation service. Please try again.",
+            text: "Sorry, I couldn't reach the service right now. Please try again.",
             timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
           },
-        ]);
-      })
+        ]),
+      )
       .finally(() => setTyping(false));
   };
 
-  const sideStyle = dock === "right" ? { right: 20 } : { left: 20 };
+  const isExp = size === "expanded";
+  const side = dock === "right" ? { right: 24 } : { left: 24 };
 
   return (
     <>
+      {/* ── FAB ──────────────────────────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(true)}
         aria-label="Open AI shopping assistant"
         style={{
           position: "fixed",
-          bottom: 20,
-          ...sideStyle,
-          width: 56,
-          height: 56,
+          bottom: 24,
+          ...side,
+          width: 54,
+          height: 54,
           borderRadius: "50%",
           border: "none",
           cursor: "pointer",
-          background: "linear-gradient(135deg, var(--primary), #7B61FF)",
-          boxShadow: "0 8px 24px rgba(var(--primary-rgb), 0.45)",
+          background: "linear-gradient(145deg, var(--primary) 0%, #7C3AED 100%)",
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,.12), 0 6px 20px rgba(var(--primary-rgb),.45)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 998,
           opacity: open ? 0 : 1,
-          transform: open ? "scale(0.6)" : "scale(1)",
+          transform: open ? "scale(0.72)" : "scale(1)",
           pointerEvents: open ? "none" : "auto",
           transition: "opacity 0.2s ease, transform 0.2s ease",
         }}
       >
-        <Sparkles size={22} style={{ color: "#fff" }} />
+        <Sparkles size={20} color="#fff" />
         <span
           style={{
             position: "absolute",
-            inset: 0,
+            inset: -6,
             borderRadius: "50%",
-            border: "2px solid var(--primary)",
-            animation: "chat-pulse 2.2s ease-out infinite",
+            border: "1.5px solid rgba(var(--primary-rgb),.35)",
+            animation: "fab-ring 2.6s ease-out infinite",
           }}
         />
       </button>
 
+      {/* ── Chat panel ───────────────────────────────────────────────────────── */}
       <div
         role="dialog"
         aria-label="AI shopping assistant"
         style={{
           position: "fixed",
-          bottom: 20,
-          ...sideStyle,
-          width: "min(380px, calc(100vw - 32px))",
-          height: "min(620px, calc(100vh - 48px))",
+          bottom: 24,
+          ...side,
+          width: isExp ? "min(660px, calc(100vw - 24px))" : "min(392px, calc(100vw - 24px))",
+          height: isExp
+            ? "min(840px, calc(100vh - 40px))"
+            : "min(640px, calc(100vh - 48px))",
           background: "var(--card)",
-          border: "1px solid var(--border)",
           borderRadius: 20,
-          boxShadow: "0 16px 48px rgba(0,0,0,0.2)",
+          // Layered shadow: border ring + depth shadows
+          boxShadow:
+            "0 0 0 1px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.06), 0 16px 48px rgba(0,0,0,.12)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
           zIndex: 999,
           opacity: open ? 1 : 0,
-          transform: open ? "translateY(0) scale(1)" : "translateY(16px) scale(0.97)",
+          transform: open ? "translateY(0) scale(1)" : "translateY(10px) scale(0.98)",
           pointerEvents: open ? "auto" : "none",
-          transition: "opacity 0.2s ease, transform 0.2s ease",
+          transition: [
+            "opacity 0.22s ease",
+            "transform 0.22s ease",
+            "width 0.28s cubic-bezier(0.4,0,0.2,1)",
+            "height 0.28s cubic-bezier(0.4,0,0.2,1)",
+          ].join(", "),
         }}
       >
-        {/* Header */}
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
         <div
           style={{
-            padding: "14px 16px",
-            borderBottom: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
             gap: 10,
+            padding: "12px 12px 12px 16px",
+            borderBottom: "1px solid var(--border)",
             flexShrink: 0,
-            background: "var(--surface)",
           }}
         >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, var(--primary), #7B61FF)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Sparkles size={14} style={{ color: "#fff" }} />
+          {/* Avatar with live green dot */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: "linear-gradient(145deg, var(--primary) 0%, #7C3AED 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Sparkles size={15} color="#fff" />
+            </div>
+            {/* Online indicator */}
+            <span
+              style={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                width: 9,
+                height: 9,
+                borderRadius: "50%",
+                background: "#22C55E",
+                border: "2px solid var(--card)",
+              }}
+            />
           </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>OneShop Assistant</p>
-            <p style={{ fontSize: 10.5, color: "var(--muted-foreground)" }}>Personalized product help</p>
+
+          {/* Identity */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13.5,
+                fontWeight: 700,
+                color: "var(--foreground)",
+                lineHeight: 1,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              OneShop AI
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--muted-foreground)",
+                marginTop: 3,
+                lineHeight: 1,
+              }}
+            >
+              Shopping assistant
+            </div>
           </div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 2, flexShrink: 0 }}>
-            <button
+
+          {/* Actions — 3 max */}
+          <div style={{ display: "flex", gap: 1 }}>
+            <IconBtn
+              title={dock === "right" ? "Move to left" : "Move to right"}
               onClick={() => setDock((d) => (d === "right" ? "left" : "right"))}
-              title={dock === "right" ? "Move to left side" : "Move to right side"}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 6, display: "flex", borderRadius: 8 }}
             >
-              {dock === "right" ? <PanelLeftClose size={15} /> : <PanelRightClose size={15} />}
-            </button>
-            <button
-              onClick={() => setOpen(false)}
-              title="Minimize"
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 6, display: "flex", borderRadius: 8 }}
+              <DockIcon toLeft={dock === "right"} />
+            </IconBtn>
+            <IconBtn
+              title={isExp ? "Compact view (Esc)" : "Expand"}
+              onClick={() => setSize((s) => (s === "compact" ? "expanded" : "compact"))}
             >
-              <Minus size={15} />
-            </button>
-            <button
-              onClick={() => setOpen(false)}
+              {isExp ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </IconBtn>
+            <IconBtn
+              danger
               title="Close"
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 6, display: "flex", borderRadius: 8 }}
+              onClick={() => { setOpen(false); setSize("compact"); }}
             >
-              <X size={15} />
-            </button>
+              <X size={14} />
+            </IconBtn>
           </div>
         </div>
 
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* ── Messages ───────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: isExp ? "20px 20px" : "16px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 18,
+            // hide scrollbar on all browsers
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -246,234 +584,245 @@ export function FloatingChat() {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: msg.role === "user" ? "flex-end" : "flex-start",
-                gap: 6,
+                gap: 4,
+                animation: "msg-in 0.16s ease-out",
               }}
             >
-              <div
-                style={{
-                  maxWidth: "88%",
-                  padding: "10px 14px",
-                  borderRadius: msg.role === "user" ? 16 : 16,
-                  background: msg.role === "user" ? "var(--primary)" : "var(--muted)",
-                  border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
-                  fontSize: 12.5,
-                  color: msg.role === "user" ? "#fff" : "var(--foreground)",
-                  lineHeight: 1.55,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {msg.text}
-              </div>
-
-              {msg.products && msg.products.length > 0 && (
-                <div className="flex gap-2.5" style={{ flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2, maxWidth: "100%" }}>
-                  {msg.products.map((p) => {
-                    const added = isInCart(p.id);
-                    const showWhy = whyProductId === p.id;
-                    return (
-                      <div
-                        key={p.id}
-                        style={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 16,
-                          padding: 10,
-                          minWidth: 140,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          style={{ width: "100%", height: 76, objectFit: "cover", borderRadius: 10, marginBottom: 8 }}
-                        />
-                        <p style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)", marginBottom: 4, lineHeight: 1.3 }}>{p.name}</p>
-                        <div className="flex items-center justify-between mb-2">
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>{formatEUR(p.price)}</span>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--primary)", background: "rgba(var(--primary-rgb),0.1)", padding: "2px 6px", borderRadius: 20 }}>
-                            {p.aiScore}% match
-                          </span>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => addItem(p)}
-                            disabled={added}
-                            style={{
-                              flex: 1,
-                              padding: "6px 8px",
-                              background: added ? "var(--muted-foreground)" : "var(--primary)",
-                              border: "none",
-                              borderRadius: 50,
-                              color: "#fff",
-                              fontSize: 10,
-                              fontWeight: 600,
-                              cursor: added ? "default" : "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 3,
-                            }}
-                          >
-                            {added ? <><Check size={10} /> Added</> : <><ShoppingCart size={10} /> Add</>}
-                          </button>
-                          <button
-                            onClick={() => setWhyProductId(showWhy ? null : p.id)}
-                            title="Why this recommendation?"
-                            style={{
-                              padding: "6px 8px",
-                              background: "transparent",
-                              border: "1.5px solid rgba(var(--primary-rgb),0.3)",
-                              borderRadius: 50,
-                              color: "var(--primary)",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Info size={11} />
-                          </button>
-                        </div>
-                        {showWhy && <WhyPanel product={p} onClose={() => setWhyProductId(null)} />}
-                      </div>
-                    );
-                  })}
+              {msg.role === "assistant" ? (
+                // Assistant: NO bubble — clean reading line
+                <div
+                  style={{
+                    maxWidth: isExp ? "80%" : "90%",
+                    fontSize: 13,
+                    color: "var(--foreground)",
+                    lineHeight: 1.65,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {msg.text}
+                </div>
+              ) : (
+                // User: solid primary bubble
+                <div
+                  style={{
+                    maxWidth: isExp ? "76%" : "86%",
+                    padding: "10px 14px",
+                    borderRadius: "16px 16px 3px 16px",
+                    background: "var(--primary)",
+                    fontSize: 13,
+                    color: "#fff",
+                    lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {msg.text}
                 </div>
               )}
 
-              <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>{msg.timestamp}</span>
+              {/* Product cards */}
+              {msg.products && msg.products.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: isExp ? "wrap" : "nowrap",
+                    gap: 8,
+                    overflowX: isExp ? "visible" : "auto",
+                    paddingBottom: isExp ? 0 : 4,
+                    maxWidth: "100%",
+                    width: "100%",
+                    marginTop: 6,
+                    // hide horizontal scrollbar
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                  }}
+                >
+                  {msg.products.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      expanded={isExp}
+                      onAdd={() => handleAdd(p)}
+                      onWhy={() => setWhyId((id) => (id === p.id ? null : p.id))}
+                      inCart={isInCart(p.id)}
+                      whyOpen={whyId === p.id}
+                      showWhy={!!user}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <span
+                style={{
+                  fontSize: 9.5,
+                  color: "var(--muted-foreground)",
+                  opacity: 0.7,
+                  marginTop: 2,
+                }}
+              >
+                {msg.timestamp}
+              </span>
             </div>
           ))}
 
-          {typing && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  background: "var(--muted)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 16,
-                  padding: "10px 14px",
-                  display: "flex",
-                  gap: 4,
-                  alignItems: "center",
-                }}
-              >
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background: "var(--primary)",
-                      display: "block",
-                      animation: `chat-bounce 1.2s ${i * 0.2}s infinite`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {typing && <TypingIndicator />}
           <div ref={bottomRef} />
         </div>
 
-        {/* Suggestions */}
-        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border)", display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto" }}>
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              onClick={() => send(s)}
-              disabled={typing}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 50,
-                border: "1.5px solid var(--border)",
-                background: "transparent",
-                color: "var(--foreground)",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: typing ? "default" : "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                opacity: typing ? 0.5 : 1,
-              }}
-            >
-              {s}
-            </button>
+        {/* ── Suggestion chips ───────────────────────────────────────────────── */}
+        <div
+          style={{
+            padding: "8px 16px",
+            borderTop: "1px solid var(--border)",
+            display: "flex",
+            gap: 6,
+            flexWrap: isExp ? "wrap" : "nowrap",
+            overflowX: isExp ? "visible" : "auto",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          {CHIPS.map((chip) => (
+            <ChipBtn key={chip} label={chip} disabled={typing} onClick={() => send(chip)} />
           ))}
         </div>
 
-        {/* Input */}
-        <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, flexShrink: 0 }}>
-          <div style={{ flex: 1, position: "relative" }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send(input)}
-              placeholder="Ask about products, plans, bundles..."
-              style={{
-                width: "100%",
-                background: "var(--input-background)",
-                border: "1.5px solid rgba(var(--primary-rgb),0.25)",
-                borderRadius: 50,
-                padding: "9px 38px 9px 14px",
-                fontSize: 12,
-                color: "var(--foreground)",
-                outline: "none",
-              }}
-            />
+        {/* ── Input area ─────────────────────────────────────────────────────── */}
+        <div style={{ padding: "10px 14px 16px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ flex: 1, position: "relative" }}>
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send(input)}
+                placeholder="Ask about products, plans, bundles…"
+                style={{
+                  width: "100%",
+                  padding: micSupported ? "10px 40px 10px 14px" : "10px 14px",
+                  background: "var(--input-background)",
+                  border: "1.5px solid var(--border)",
+                  borderRadius: 12,
+                  fontSize: 13,
+                  color: "var(--foreground)",
+                  outline: "none",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--primary)";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(var(--primary-rgb),.1)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "var(--border)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+              {micSupported && (
+                <button
+                  onClick={toggleListening}
+                  title={listening ? "Stop listening" : "Voice input"}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 4,
+                    display: "flex",
+                    borderRadius: 6,
+                    color: listening ? "var(--primary)" : "var(--muted-foreground)",
+                    transition: "color 0.15s",
+                  }}
+                >
+                  {listening ? <MicOff size={15} /> : <Mic size={15} />}
+                </button>
+              )}
+            </div>
+
+            {/* Send — circle, gradient when active */}
             <button
-              onClick={toggleListening}
-              disabled={!micSupported}
-              title={micSupported ? "Voice input" : "Voice input not supported in this browser"}
+              onClick={() => send(input)}
+              disabled={typing || !input.trim()}
               style={{
-                position: "absolute",
-                right: 6,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: listening ? "rgba(var(--primary-rgb),0.15)" : "transparent",
+                width: 40,
+                height: 40,
+                flexShrink: 0,
                 border: "none",
-                cursor: micSupported ? "pointer" : "not-allowed",
-                opacity: micSupported ? 1 : 0.4,
-                color: listening ? "var(--primary)" : "var(--muted-foreground)",
-                padding: 4,
-                borderRadius: 50,
+                borderRadius: "50%",
+                cursor: typing || !input.trim() ? "default" : "pointer",
+                background:
+                  typing || !input.trim()
+                    ? "var(--muted)"
+                    : "linear-gradient(145deg, var(--primary) 0%, #7C3AED 100%)",
+                color: typing || !input.trim() ? "var(--muted-foreground)" : "#fff",
                 display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow:
+                  typing || !input.trim()
+                    ? "none"
+                    : "0 2px 8px rgba(var(--primary-rgb),.4)",
+                transition: "background 0.18s, box-shadow 0.18s, color 0.18s",
               }}
             >
-              {listening ? <MicOff size={13} /> : <Mic size={13} />}
+              <Send size={15} />
             </button>
           </div>
-          <button
-            onClick={() => send(input)}
-            disabled={typing || !input.trim()}
-            style={{
-              padding: "9px 14px",
-              background: "var(--primary)",
-              border: "none",
-              borderRadius: 50,
-              color: "#fff",
-              cursor: typing || !input.trim() ? "default" : "pointer",
-              opacity: typing || !input.trim() ? 0.5 : 1,
-              display: "flex",
-              alignItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Send size={14} />
-          </button>
         </div>
       </div>
 
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
       <style>{`
-        @keyframes chat-bounce {
-          0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
-          40% { transform: scale(1); opacity: 1; }
+        @keyframes dot-bounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-5px); opacity: 1; }
         }
-        @keyframes chat-pulse {
-          0% { opacity: 0.6; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.35); }
+        @keyframes fab-ring {
+          0%   { transform: scale(1); opacity: 0.7; }
+          100% { transform: scale(1.65); opacity: 0; }
         }
+        @keyframes msg-in {
+          from { opacity: 0; transform: translateY(5px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes why-in {
+          from { opacity: 0; transform: scaleY(0.92); transform-origin: top; }
+          to   { opacity: 1; transform: scaleY(1); }
+        }
+        /* Hide webkit scrollbar in messages and chip rows */
+        div::-webkit-scrollbar { display: none; }
       `}</style>
     </>
+  );
+}
+
+// ─── Suggestion chip ───────────────────────────────────────────────────────────
+function ChipBtn({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        flexShrink: 0,
+        padding: "5px 11px",
+        borderRadius: 9999,
+        border: `1px solid ${hov && !disabled ? "var(--primary)" : "var(--border)"}`,
+        background: hov && !disabled ? "rgba(var(--primary-rgb),.05)" : "transparent",
+        color: hov && !disabled ? "var(--primary)" : "var(--foreground)",
+        fontSize: 11.5,
+        fontWeight: 500,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.4 : 1,
+        whiteSpace: "nowrap",
+        transition: "border-color 0.14s, background 0.14s, color 0.14s",
+      }}
+    >
+      {label}
+    </button>
   );
 }
