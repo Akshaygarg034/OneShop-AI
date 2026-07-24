@@ -22,7 +22,8 @@ numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
 # (conflicts with the pinned 1.54.4 below).  Instead we use:
 #   - openai's native Pydantic structured output (client.beta.chat.completions.parse)
 #   - langchain-core message types (already in env via RAG stack) for history
-openai==1.54.4
+# openai==1.54.4
+openai>=2.45.0
 
 # --- Real mode: session persistence (P4) ---
 # 2.7.4's client constructor rejected any non-JWT key, so it raised
