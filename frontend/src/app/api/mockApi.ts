@@ -26,6 +26,7 @@ interface BackendProduct {
   compatible_plans: string[];
   stock: number;
   in_stock: boolean;
+  image_url: string;
 }
 
 interface BackendRecommendation {
@@ -61,8 +62,9 @@ function titleCase(s: string): string {
 }
 
 function placeholderImage(name: string): string {
-  // No product photography exists in the catalog - a clearly-a-placeholder
-  // image, not a fabricated "real photo" of a device we don't have art for.
+  // Fallback only - used if a product is missing image_url (e.g. added to the
+  // catalog without one). A clearly-a-placeholder image, not a fabricated
+  // "real photo" of a device we don't have art for.
   return `https://placehold.co/400x400/1a1a2e/ffffff?text=${encodeURIComponent(name)}`;
 }
 
@@ -101,7 +103,7 @@ function adaptProduct(p: BackendProduct, score?: number, why?: string): Product 
     category: titleCase(p.category || p.type),
     price,
     monthlyPrice,
-    image: placeholderImage(p.name),
+    image: p.image_url || placeholderImage(p.name),
     badge: !p.in_stock ? "Out of Stock" : why ? "AI Pick" : "In Stock",
     badgeColor: !p.in_stock ? "#FF3B30" : why ? "var(--primary)" : "#00C2A8",
     aiScore: score !== undefined ? clampScore(score) : heuristicScore(p),

@@ -6,7 +6,8 @@
     "type": "phone",
     "category": "phones",
     "description": "Flagship camera phone with AI photo tools and clean Android.",
-    "features": ["camera", "5g", "eu_roaming", "android"]
+    "features": ["camera", "5g", "eu_roaming", "android"],
+    "image_url": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_s24",
@@ -15,7 +16,8 @@
     "type": "phone",
     "category": "phones",
     "description": "Powerful Android phone with a bright display and strong camera.",
-    "features": ["camera", "5g", "eu_roaming", "android", "gaming"]
+    "features": ["camera", "5g", "eu_roaming", "android", "gaming"],
+    "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_iphone16pro",
@@ -24,7 +26,8 @@
     "type": "phone",
     "category": "phones",
     "description": "Premium iPhone with pro cameras and titanium build.",
-    "features": ["camera", "5g", "eu_roaming", "ios", "gaming"]
+    "features": ["camera", "5g", "eu_roaming", "ios", "gaming"],
+    "image_url": "https://images.unsplash.com/photo-1592921870789-04563d55041c?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_a55",
@@ -33,7 +36,8 @@
     "type": "phone",
     "category": "phones",
     "description": "Great value mid-range Android phone with a solid camera.",
-    "features": ["camera", "5g", "android"]
+    "features": ["camera", "5g", "android"],
+    "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_pixel9",
@@ -42,7 +46,8 @@
     "type": "phone",
     "category": "phones",
     "description": "Latest Pixel with an even better camera, on-device AI features, and clean Android.",
-    "features": ["camera", "5g", "eu_roaming", "android", "ai_features"]
+    "features": ["camera", "5g", "eu_roaming", "android", "ai_features"],
+    "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_iphone15",
@@ -51,7 +56,8 @@
     "type": "phone",
     "category": "phones",
     "description": "Reliable iPhone with a great camera and iOS ecosystem, at a lower price than the Pro line.",
-    "features": ["camera", "5g", "eu_roaming", "ios"]
+    "features": ["camera", "5g", "eu_roaming", "ios"],
+    "image_url": "https://images.unsplash.com/photo-1592286927505-1def25115558?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_s",
@@ -60,7 +66,8 @@
     "type": "plan",
     "category": "plans",
     "description": "Entry plan: 10 GB data, unlimited calls & texts in Germany.",
-    "features": ["10gb", "calls", "germany"]
+    "features": ["10gb", "calls", "germany"],
+    "image_url": "https://images.unsplash.com/photo-1580654712603-eb43273aff33?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_m",
@@ -69,7 +76,8 @@
     "type": "plan",
     "category": "plans",
     "description": "Popular plan: 40 GB data, EU roaming included, 5G.",
-    "features": ["40gb", "eu_roaming", "5g", "calls"]
+    "features": ["40gb", "eu_roaming", "5g", "calls"],
+    "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_l",
@@ -78,7 +86,8 @@
     "type": "plan",
     "category": "plans",
     "description": "Premium plan: unlimited data, EU roaming, 5G, hotspot.",
-    "features": ["unlimited", "eu_roaming", "5g", "hotspot", "calls"]
+    "features": ["unlimited", "eu_roaming", "5g", "hotspot", "calls"],
+    "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_young",
@@ -87,7 +96,8 @@
     "type": "plan",
     "category": "plans",
     "description": "Discounted plan for customers under 28: 30 GB data, EU roaming, 5G.",
-    "features": ["30gb", "eu_roaming", "5g", "calls", "youth_discount"]
+    "features": ["30gb", "eu_roaming", "5g", "calls", "youth_discount"],
+    "image_url": "https://images.unsplash.com/photo-1522199755839-a2bacb67c546?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_case",
@@ -96,7 +106,8 @@
     "type": "accessory",
     "category": "accessories",
     "description": "Slim protective case, fits most flagship phones.",
-    "features": ["protection"]
+    "features": ["protection"],
+    "image_url": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_buds",
@@ -105,7 +116,8 @@
     "type": "accessory",
     "category": "accessories",
     "description": "Noise-cancelling wireless earbuds with 24h battery.",
-    "features": ["audio", "wireless"]
+    "features": ["audio", "wireless"],
+    "image_url": "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_charger",
@@ -114,7 +126,8 @@
     "type": "accessory",
     "category": "accessories",
     "description": "45W USB-C fast charger.",
-    "features": ["charging"]
+    "features": ["charging"],
+    "image_url": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_screen_protector",
@@ -123,7 +136,8 @@
     "type": "accessory",
     "category": "accessories",
     "description": "Scratch-resistant tempered glass screen protector, fits most flagship phones.",
-    "features": ["protection"]
+    "features": ["protection"],
+    "image_url": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "bundle_home_mobile",
@@ -132,6 +146,7 @@
     "type": "bundle",
     "category": "bundles",
     "description": "Combines a mobile plan with home fiber internet and MagentaTV for a discounted monthly price.",
-    "features": ["fiber", "mobile", "tv", "smart_home"]
+    "features": ["fiber", "mobile", "tv", "smart_home"],
+    "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=400&fit=crop&auto=format"
   }
 ]
