@@ -16,14 +16,10 @@ langchain-huggingface==1.2.2
 sentence-transformers==5.6.1
 numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
 
-# --- Real mode: Grok generation via LangGraph (P1, P3) ---
-# NOTE: langgraph 0.2.x + langchain-xai 0.1.x need langchain-core 0.3.x, which
-# CONFLICTS with the RAG stack above (langchain-core 1.x). Install these only in
-# a separate env for the Grok path, or upgrade them to langchain-core 1.x
-# compatible releases. They are NOT needed while MOCK_MODE=true.
-# langgraph==0.2.28
-# langchain-core==0.3.9
-# langchain-xai==0.1.5
+# --- Real mode: OpenAI generation - intent extraction + "why" explanations ---
+# Direct openai SDK (not langchain-openai), so it has no dependency conflict
+# with the RAG stack above.
+openai==1.54.4
 
 # --- Real mode: session persistence (P4) ---
 # 2.7.4's client constructor rejected any non-JWT key, so it raised

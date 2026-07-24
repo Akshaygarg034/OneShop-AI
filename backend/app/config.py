@@ -4,7 +4,11 @@ Central config. SHARED.
 MOCK_MODE is the key switch:
   - MOCK_MODE=true  -> everything runs on fake data, no API keys / Qdrant needed.
                        This is how the whole team starts (Checkpoint C1).
-  - MOCK_MODE=false -> real Grok + Qdrant. Flip per-module as each person's real code lands.
+  - MOCK_MODE=false -> intent extraction + "why" explanations call OpenAI. Both
+                       paths catch any failure (missing/bad key, rate limit, network,
+                       malformed response) and fall back to the mock/template
+                       behaviour automatically, so flipping this can never 500 the
+                       app - it's "prefer real, degrade safely," not a hard switch.
 
 Read from a .env file (see .env.example).
 """
@@ -29,9 +33,10 @@ def _bool(name: str, default: str = "true") -> bool:
 # Global mock switch (start with everything mocked).
 MOCK_MODE = _bool("MOCK_MODE", "true")
 
-# Grok / xAI (P1, P3 use this for generation)
-XAI_API_KEY = os.getenv("XAI_API_KEY", "")
-XAI_MODEL = os.getenv("XAI_MODEL", "grok-2-latest")
+# OpenAI (intent extraction + "why" explanations). Direct openai SDK - no
+# langchain wrapper, so this has no dependency conflict with the RAG stack.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Qdrant (P2)
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
