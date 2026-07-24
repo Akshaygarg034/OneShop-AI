@@ -80,13 +80,22 @@ class CartItem(BaseModel):
     product_id: str
     qty: int = 1
     price: float = 0.0
+    name: str = ""                       # denormalised for display / omnichannel
+    billing: str = "onetime"             # "onetime" (accessories) | "monthly" (phones/plans)
 
 
 class Cart(BaseModel):
-    """Owned by P4."""
+    """Owned by P4.
+
+    Telekom sells one-time goods (accessories) AND monthly commitments (phones on a
+    plan, tariffs). We track both:
+      - subtotal:      sum of ONE-TIME item prices -> drives the free-shipping nudge.
+      - monthly_total: sum of MONTHLY item prices  -> the recurring commitment.
+    """
     session_id: str
     items: list[CartItem] = Field(default_factory=list)
-    subtotal: float = 0.0
+    subtotal: float = 0.0                # one-time goods total
+    monthly_total: float = 0.0           # recurring monthly total
     free_shipping_threshold: float = 50.0
 
 
