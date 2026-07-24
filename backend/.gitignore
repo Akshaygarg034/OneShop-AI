@@ -199,3 +199,4 @@ __MACOSX/
 
 # macOS temporary files
 .fseventsd/
+venv
