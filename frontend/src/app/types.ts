@@ -14,6 +14,13 @@ export interface Product {
   reasons: string[];
   inStock: boolean;
   trend: string;
+  /** Real signal breakdown behind `aiScore`, straight from the backend's
+   *  recommend.rank_products() - relevance / preference / budget / popularity,
+   *  each 0-1. Absent only if the catalog call failed to include it. */
+  signals?: Record<string, number>;
+  /** "cold_start" (ranked by relevance + popularity - we don't know this user
+   *  yet) or "personalized" (biased by their learned preference profile). */
+  personalizationBasis?: "cold_start" | "personalized";
 }
 
 export interface CartLineItem {

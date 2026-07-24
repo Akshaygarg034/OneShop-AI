@@ -50,7 +50,15 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     # 2. Find candidates (P2)
     candidates = retrieve(intent)
 
-    # 3. Filter to what's actually offerable - SOURCE OF TRUTH (P2)
+    # 3. Filter to what's actually offerable - SOURCE OF TRUTH (P2). This is
+    # also where a HARD scope to what THIS turn explicitly asked for happens
+    # (brand_mismatch / wrong_type in eligibility.py) - without it, a
+    # session-wide learned preference (e.g. "camera" from an earlier phone
+    # question) keeps outscoring the very plans/accessories being asked about
+    # right now, since rank_products()'s `preference` signal reads the whole
+    # accumulated profile, not just this message. A budget or feature
+    # mentioned earlier should keep biasing ranking WITHIN a category; it
+    # should never hijack the category itself.
     evaluated = filter_eligible(candidates, intent)
     eligible = [e for e in evaluated if e.eligible]
 

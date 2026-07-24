@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
-  ShoppingCart, Trash2, Sparkles, Clock, Users, Tag, ChevronRight, ChevronLeft,
-  Check, Package, Shield, Truck, Minus, Plus, CheckCircle2,
+  ShoppingCart, Trash2, Sparkles, Tag, ChevronRight, ChevronLeft,
+  Check, Package, Shield, Truck, Minus, Plus, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { useCart } from "../../cart/CartContext";
 import { useAuth } from "../../auth/AuthContext";
@@ -12,13 +12,8 @@ import { AuthModal } from "../AuthModal";
 import type { Product, ShippingDetails, PaymentDetails } from "../../types";
 
 const steps = ["Cart", "Details", "Payment", "Confirm"];
-const RESERVATION_SECONDS = 15 * 60;
-
-function formatCountdown(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+// A real inventory signal: only worth surfacing once stock is genuinely low.
+const LOW_STOCK_THRESHOLD = 10;
 
 interface SmartCartProps {
   onContinueShopping: () => void;
@@ -32,7 +27,6 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
   const [bundles, setBundles] = useState<Product[]>([]);
   const [bundlesLoading, setBundlesLoading] = useState(true);
   const [liveActivity, setLiveActivity] = useState<{ viewers: number; stockLeft: number } | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(RESERVATION_SECONDS);
 
   const [shipping, setShipping] = useState<ShippingDetails>({ fullName: "", address: "", city: "", postalCode: "" });
   const [payment, setPayment] = useState<PaymentDetails>({ cardName: "", cardNumber: "", expiry: "", cvc: "" });
@@ -58,12 +52,6 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
     }
     getLiveActivity(firstItem.id).then(setLiveActivity);
   }, [firstItem?.id]);
-
-  useEffect(() => {
-    if (step !== 0 || items.length === 0) return;
-    const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [step, items.length]);
 
   const bundleDiscountRate = items.length >= 2 ? 0.05 : 0;
   // Discount only applies to one-time goods (accessories, upfront device cost)
@@ -194,8 +182,9 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
     <>
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 32px", color: "var(--foreground)" }}>
-      {/* Live reservation banner */}
-      {step === 0 && firstItem && liveActivity && (
+      {/* Low-stock notice - real catalog stock, no fabricated viewer count or
+          fake reservation timer (there's no reservation system behind this). */}
+      {step === 0 && firstItem && liveActivity && liveActivity.stockLeft > 0 && liveActivity.stockLeft <= LOW_STOCK_THRESHOLD && (
         <div
           style={{
             background: "rgba(255,107,53,0.08)",
@@ -205,20 +194,14 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
             marginBottom: 20,
             display: "flex",
             alignItems: "center",
-            gap: 12,
+            gap: 10,
           }}
         >
-          <Users size={14} style={{ color: "#FF6B35", flexShrink: 0 }} />
+          <AlertTriangle size={14} style={{ color: "#FF6B35", flexShrink: 0 }} />
           <p style={{ fontSize: 12, color: "#FF6B35" }}>
-            <strong>{liveActivity.viewers} people</strong> are viewing the {firstItem.name} right now · Only{" "}
-            <strong>{liveActivity.stockLeft} units left</strong> in your area
+            Only <strong>{liveActivity.stockLeft} left</strong> in stock for {firstItem.name} - not reserved, so it's
+            first come, first served.
           </p>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-            <Clock size={12} style={{ color: "#FF6B35" }} />
-            <span style={{ fontSize: 11, color: "#FF6B35", fontWeight: 600 }}>
-              {secondsLeft > 0 ? `Reserved for ${formatCountdown(secondsLeft)}` : "Reservation expired"}
-            </span>
-          </div>
         </div>
       )}
 

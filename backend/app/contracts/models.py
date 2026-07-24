@@ -38,6 +38,11 @@ class Product(BaseModel):
     stock: int = 0                      # LIVE fact - checked, never embedded
     in_stock: bool = True
     image_url: str = ""                 # display image for the frontend
+    popularity: float = 0.5             # merchandising-curated prior in [0,1]. Used ONLY to
+                                         # break ties when we have no personalization signal yet
+                                         # (cold start) - in production this would be a real
+                                         # "recent sales velocity" metric refreshed by an offline
+                                         # job, never a stand-in for eligibility or a fake ML score.
 
 
 class PreferenceProfile(BaseModel):
@@ -76,6 +81,26 @@ class Recommendation(BaseModel):
     score: float = 0.0
     why: str = ""
     bundle: list[str] = Field(default_factory=list)
+    confidence: float = 0.0             # 0-100, a direct re-expression of `signals` below -
+                                         # never a separate invented metric or fake model name.
+    signals: dict[str, float] = Field(default_factory=dict)   # named contributions that were
+                                         # weighted-summed into `score`: relevance / preference /
+                                         # budget / popularity. This is what backs an honest
+                                         # "why this?" panel - real numbers, not marketing copy.
+    personalization_basis: str = "cold_start"   # "cold_start" (no profile signal yet - ranked by
+                                         # retrieval relevance + merchandising prior) or
+                                         # "personalized" (biased by this user's learned profile).
+
+
+class RankedProduct(Product):
+    """A catalog product annotated with this session's live ranking, for the
+    browse view. Same scoring engine as chat recommendations
+    (recommend.rank_products), just applied to the whole catalog instead of
+    the top 3 - one recommendation engine in the codebase, not two."""
+    confidence: float = 0.0
+    signals: dict[str, float] = Field(default_factory=dict)
+    personalization_basis: str = "cold_start"
+    why: str = ""
 
 
 class CartItem(BaseModel):

@@ -11,36 +11,39 @@ this module is cheap and the ~90 MB model only loads on first real search.
 
 Manual test:  cd backend && python -m app.rag.retriever
 """
+import os
 import logging
 from functools import lru_cache
 
-from app.config import (
-    EMBED_MODEL,
-    MODEL_CACHE_DIR,
-    QDRANT_API_KEY,
-    QDRANT_COLLECTION,
-    QDRANT_URL,
-)
+from app.config import EMBED_MODEL, MODEL_CACHE_DIR, QDRANT_API_KEY, QDRANT_COLLECTION, QDRANT_URL
 
 logger = logging.getLogger(__name__)
 
 
+# @lru_cache(maxsize=1)
+# def _embeddings():
+#     """The ~90MB local embedding model. Cached separately from the Qdrant
+#     connection: lru_cache does NOT cache raised exceptions, so if it were bundled
+#     into _vector_store() below, a transient Qdrant hiccup would re-trigger a full
+#     model reload on every subsequent call, not just re-attempt the Qdrant part."""
+#     from langchain_huggingface import HuggingFaceEmbeddings
+
+#     return HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
+from langchain_openai import OpenAIEmbeddings
+
 @lru_cache(maxsize=1)
 def _embeddings():
-    """The ~90MB local embedding model. Cached separately from the Qdrant
-    connection: lru_cache does NOT cache raised exceptions, so if it were bundled
-    into _vector_store() below, a transient Qdrant hiccup would re-trigger a full
-    model reload on every subsequent call, not just re-attempt the Qdrant part."""
-    from langchain_huggingface import HuggingFaceEmbeddings
-
-    return HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
-
+    return OpenAIEmbeddings(model="text-embedding-3-small", dimensions=256, api_key=os.getenv("OPENAI_API_KEY"))
 
 @lru_cache(maxsize=1)
 def _vector_store():
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
 
+    # ingestion.py authenticates with QDRANT_API_KEY; this client used to omit
+    # it, so every query-time search 401'd against an auth-protected Qdrant
+    # and silently fell back to keyword search - RAG was configured correctly
+    # but never actually ran.
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
     return QdrantVectorStore(
         client=client,
@@ -54,8 +57,12 @@ def search(query: str, k: int = 8) -> list[dict]:
     Raises if Qdrant/deps are unavailable - callers decide how to fall back."""
     store = _vector_store()
     hits = store.similarity_search_with_score(query, k=k)
+    
     results = []
+    SIMILARITY_THRESHOLD = 0.25
     for doc, score in hits:
+        if float(score) < SIMILARITY_THRESHOLD:
+            continue
         md = doc.metadata or {}
         results.append({
             "product_id": md.get("product_id"),
@@ -63,6 +70,7 @@ def search(query: str, k: int = 8) -> list[dict]:
             "name": md.get("name", ""),
             "content": doc.page_content,
         })
+    print(f"results: {results}")
     return results
 
 

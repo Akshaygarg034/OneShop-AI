@@ -12,8 +12,8 @@ python-dotenv==1.0.1
 # These pull langchain-core 1.x. Verified working set:
 qdrant-client==1.18.0
 langchain-qdrant==1.1.0
-langchain-huggingface==1.2.2
-sentence-transformers==5.6.1
+# langchain-huggingface==1.2.2
+# sentence-transformers==5.6.1
 numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
 
 # --- Real mode: OpenAI generation - intent extraction + "why" explanations ---
@@ -22,7 +22,8 @@ numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
 # (conflicts with the pinned 1.54.4 below).  Instead we use:
 #   - openai's native Pydantic structured output (client.beta.chat.completions.parse)
 #   - langchain-core message types (already in env via RAG stack) for history
-openai==1.54.4
+# openai==1.54.4
+openai>=2.45.0
 
 # --- Real mode: session persistence (P4) ---
 # 2.7.4's client constructor rejected any non-JWT key, so it raised
@@ -36,3 +37,4 @@ websockets==15.0.1   # supabase's realtime needs websockets.asyncio (>=13) but <
 # --- Testing (P4) ---
 pytest==8.3.3
 httpx==0.27.2
+langchain-openai==1.4.1

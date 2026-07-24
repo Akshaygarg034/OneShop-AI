@@ -9,6 +9,31 @@ import type { Product } from "../../types";
 
 const categories = ["All", "Phones", "Plans", "Accessories", "Bundles", "Smart Home"];
 
+const SIGNAL_LABELS: Record<string, string> = {
+  relevance: "Matches what you asked for",
+  preference: "Fits your preferences",
+  budget: "Budget fit",
+  popularity: "Popular with other customers",
+};
+
+/** Real signal breakdown from recommend.rank_products() (backend/app/recommend/
+ * recommender.py), each already normalized 0-1. Preference can be negative for
+ * a rejected brand - clamp for display since a bar can't go below empty. */
+const SignalBar = ({ label, value }: { label: string; value: number }) => {
+  const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 3 }}>
+        <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{label}</span>
+        <span style={{ fontSize: 11, color: "var(--foreground)", fontWeight: 600 }}>{pct}%</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: "var(--muted)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
+      </div>
+    </div>
+  );
+};
+
 const WhyModal = ({ product, onClose }: { product: Product; onClose: () => void }) => (
   <div
     style={{
@@ -61,12 +86,29 @@ const WhyModal = ({ product, onClose }: { product: Product; onClose: () => void 
       >
         <div style={{ fontSize: 28, fontWeight: 700, color: "var(--primary)" }}>{product.aiScore}%</div>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>AI Match Score</p>
-          <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Based on your profile, usage & context</p>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>Match score</p>
+          <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
+            {product.personalizationBasis === "personalized"
+              ? "Weighted from your saved preferences below"
+              : "We don't have your preferences yet - weighted from relevance & popularity below"}
+          </p>
         </div>
       </div>
 
-      <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 10, fontWeight: 600 }}>SIGNALS USED:</p>
+      {product.signals && (
+        <>
+          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 8, fontWeight: 600 }}>
+            HOW THE SCORE IS MADE UP:
+          </p>
+          <div style={{ marginBottom: 14 }}>
+            {Object.entries(product.signals).map(([key, value]) => (
+              <SignalBar key={key} label={SIGNAL_LABELS[key] ?? key} value={value} />
+            ))}
+          </div>
+        </>
+      )}
+
+      <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 10, fontWeight: 600 }}>WHY:</p>
       <div className="space-y-2.5">
         {product.reasons.map((reason, i) => (
           <div key={i} className="flex gap-3">
@@ -78,7 +120,9 @@ const WhyModal = ({ product, onClose }: { product: Product; onClose: () => void 
 
       <div style={{ borderTop: "1px solid rgba(var(--border-rgb),0.07)", marginTop: 16, paddingTop: 14 }}>
         <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
-          Powered by PersonalizationAgent v3.2 · Confidence: {product.aiScore}% · Model: ContextualBandit-v4
+          {product.personalizationBasis === "personalized"
+            ? "Personalized: ranked using your budget, viewed brands, and mentioned features."
+            : "Cold start: no learned preferences yet - ranked by relevance to your search and general popularity. Chat with the assistant to personalize this."}
         </p>
       </div>
     </div>

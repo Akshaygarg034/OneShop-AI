@@ -8,11 +8,20 @@
     "price_monthly": 15,
     "price_onetime": 0,
     "category": "phones",
-    "features": ["camera", "5g", "eu_roaming", "android"],
-    "compatible_plans": ["plan_m", "plan_l"],
+    "features": [
+      "camera",
+      "5g",
+      "eu_roaming",
+      "android"
+    ],
+    "compatible_plans": [
+      "plan_m",
+      "plan_l"
+    ],
     "stock": 12,
     "in_stock": true,
-    "image_url": "https://media-ik.croma.com/Croma%20Assets/Communication/Mobiles/Images/309134_0_cv9vxa.png?tr=w-640"
+    "image_url": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.75
   },
   {
     "id": "phone_s24",
@@ -23,11 +32,21 @@
     "price_monthly": 18,
     "price_onetime": 0,
     "category": "phones",
-    "features": ["camera", "5g", "eu_roaming", "android", "gaming"],
-    "compatible_plans": ["plan_m", "plan_l"],
+    "features": [
+      "camera",
+      "5g",
+      "eu_roaming",
+      "android",
+      "gaming"
+    ],
+    "compatible_plans": [
+      "plan_m",
+      "plan_l"
+    ],
     "stock": 5,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.82
   },
   {
     "id": "phone_iphone16pro",
@@ -38,11 +57,20 @@
     "price_monthly": 40,
     "price_onetime": 0,
     "category": "phones",
-    "features": ["camera", "5g", "eu_roaming", "ios", "gaming"],
-    "compatible_plans": ["plan_l"],
+    "features": [
+      "camera",
+      "5g",
+      "eu_roaming",
+      "ios",
+      "gaming"
+    ],
+    "compatible_plans": [
+      "plan_l"
+    ],
     "stock": 0,
     "in_stock": false,
-    "image_url": "https://images.unsplash.com/photo-1592921870789-04563d55041c?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1592921870789-04563d55041c?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.85
   },
   {
     "id": "phone_a55",
@@ -53,11 +81,19 @@
     "price_monthly": 8,
     "price_onetime": 0,
     "category": "phones",
-    "features": ["camera", "5g", "android"],
-    "compatible_plans": ["plan_s", "plan_m"],
+    "features": [
+      "camera",
+      "5g",
+      "android"
+    ],
+    "compatible_plans": [
+      "plan_s",
+      "plan_m"
+    ],
     "stock": 30,
     "in_stock": true,
-    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSdYVBNi_i2i9ujln2nDqXDJmHrvdt27Xj76SpR6RDeTsvgrcJWbK3VHDQ&s=10"
+    "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.62
   },
   {
     "id": "plan_s",
@@ -68,11 +104,16 @@
     "price_monthly": 20,
     "price_onetime": 0,
     "category": "plans",
-    "features": ["10gb", "calls", "germany"],
+    "features": [
+      "10gb",
+      "calls",
+      "germany"
+    ],
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjHVgsnVM44opQfI4S1dJSVPXxQoZtT2YQz24kQM6Af0ryrXACuy5tezJm&s=10"
+    "image_url": "https://images.unsplash.com/photo-1580654712603-eb43273aff33?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.45
   },
   {
     "id": "plan_m",
@@ -83,11 +124,17 @@
     "price_monthly": 30,
     "price_onetime": 0,
     "category": "plans",
-    "features": ["40gb", "eu_roaming", "5g", "calls"],
+    "features": [
+      "40gb",
+      "eu_roaming",
+      "5g",
+      "calls"
+    ],
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSAjbxu_bBGFCmeRf1SwEVLs2kLiFEymiTWBo1ycc4_wg&s"
+    "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.72
   },
   {
     "id": "plan_l",
@@ -98,11 +145,18 @@
     "price_monthly": 45,
     "price_onetime": 0,
     "category": "plans",
-    "features": ["unlimited", "eu_roaming", "5g", "hotspot", "calls"],
+    "features": [
+      "unlimited",
+      "eu_roaming",
+      "5g",
+      "hotspot",
+      "calls"
+    ],
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxGqLqChycoQxGx5_B8qyOD_sVV8pfxiu-fs9blkZzTA&s=10"
+    "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.55
   },
   {
     "id": "accessory_case",
@@ -113,11 +167,14 @@
     "price_monthly": 0,
     "price_onetime": 15,
     "category": "accessories",
-    "features": ["protection"],
+    "features": [
+      "protection"
+    ],
     "compatible_plans": [],
     "stock": 200,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.65
   },
   {
     "id": "accessory_buds",
@@ -128,11 +185,15 @@
     "price_monthly": 0,
     "price_onetime": 49,
     "category": "accessories",
-    "features": ["audio", "wireless"],
+    "features": [
+      "audio",
+      "wireless"
+    ],
     "compatible_plans": [],
     "stock": 80,
     "in_stock": true,
-    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQGkxOrXZDX2PDXGtohM4ysAouHdMynmQSaMwZuLAkZRw&s=10"
+    "image_url": "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.6
   },
   {
     "id": "accessory_charger",
@@ -143,11 +204,14 @@
     "price_monthly": 0,
     "price_onetime": 25,
     "category": "accessories",
-    "features": ["charging"],
+    "features": [
+      "charging"
+    ],
     "compatible_plans": [],
     "stock": 150,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.55
   },
   {
     "id": "phone_pixel9",
@@ -158,11 +222,21 @@
     "price_monthly": 22,
     "price_onetime": 0,
     "category": "phones",
-    "features": ["camera", "5g", "eu_roaming", "android", "ai_features"],
-    "compatible_plans": ["plan_m", "plan_l"],
+    "features": [
+      "camera",
+      "5g",
+      "eu_roaming",
+      "android",
+      "ai_features"
+    ],
+    "compatible_plans": [
+      "plan_m",
+      "plan_l"
+    ],
     "stock": 8,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.78
   },
   {
     "id": "phone_iphone15",
@@ -173,11 +247,20 @@
     "price_monthly": 32,
     "price_onetime": 0,
     "category": "phones",
-    "features": ["camera", "5g", "eu_roaming", "ios"],
-    "compatible_plans": ["plan_m", "plan_l"],
+    "features": [
+      "camera",
+      "5g",
+      "eu_roaming",
+      "ios"
+    ],
+    "compatible_plans": [
+      "plan_m",
+      "plan_l"
+    ],
     "stock": 14,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1592286927505-1def25115558?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1592286927505-1def25115558?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.7
   },
   {
     "id": "plan_young",
@@ -188,11 +271,18 @@
     "price_monthly": 25,
     "price_onetime": 0,
     "category": "plans",
-    "features": ["30gb", "eu_roaming", "5g", "calls", "youth_discount"],
+    "features": [
+      "30gb",
+      "eu_roaming",
+      "5g",
+      "calls",
+      "youth_discount"
+    ],
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://www.teltarif.de/img/arch/2025/kw14/telekom-magentamobilyoung-tarife-1f.jpg"
+    "image_url": "https://images.unsplash.com/photo-1522199755839-a2bacb67c546?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.5
   },
   {
     "id": "accessory_screen_protector",
@@ -203,11 +293,14 @@
     "price_monthly": 0,
     "price_onetime": 12,
     "category": "accessories",
-    "features": ["protection"],
+    "features": [
+      "protection"
+    ],
     "compatible_plans": [],
     "stock": 300,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.42
   },
   {
     "id": "bundle_home_mobile",
@@ -218,10 +311,16 @@
     "price_monthly": 55,
     "price_onetime": 0,
     "category": "bundles",
-    "features": ["fiber", "mobile", "tv", "smart_home"],
+    "features": [
+      "fiber",
+      "mobile",
+      "tv",
+      "smart_home"
+    ],
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=400&fit=crop&auto=format",
+    "popularity": 0.48
   }
 ]
