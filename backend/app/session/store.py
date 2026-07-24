@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from app.config import SESSION_BACKEND, SUPABASE_KEY, SUPABASE_URL
 from app.contracts.models import Cart, CartItem, PreferenceProfile, Product
-from app.retrieval.catalog import get_product
+from app.retrieval.catalog import get_product, load_catalog
 
 # Product types billed monthly (device-on-plan / tariffs) vs one-time (accessories).
 _MONTHLY_TYPES = {"phone", "plan"}
@@ -205,6 +205,48 @@ class SessionStore:
         self._recompute(session.cart)
         self.save(session)
         return session.cart
+
+    def set_cart_qty(self, session_id: str, product_id: str, qty: int) -> Cart:
+        """Set an item's quantity directly (for a +/- stepper). qty <= 0 removes it."""
+        session = self.get(session_id)
+        if qty <= 0:
+            session.cart.items = [i for i in session.cart.items if i.product_id != product_id]
+        else:
+            for item in session.cart.items:
+                if item.product_id == product_id:
+                    item.qty = qty
+                    break
+            else:
+                product = get_product(product_id)
+                price, billing = _price_of(product)
+                session.cart.items.append(CartItem(
+                    product_id=product_id, qty=qty, price=price,
+                    name=product.name if product else product_id, billing=billing,
+                ))
+        self._recompute(session.cart)
+        self.save(session)
+        return session.cart
+
+    def suggest_additions(self, session_id: str, limit: int = 3) -> list[Product]:
+        """Catalog-grounded 'complete your setup' suggestions: in-stock items not
+        already in the cart, weighted toward categories that complement what's
+        already there (a phone in cart -> prioritize accessories/plans). No
+        fabricated scores or social proof - just a deterministic filter + sort
+        over real catalog data."""
+        cart = self.get(session_id).cart
+        in_cart_ids = {i.product_id for i in cart.items}
+        cart_types = {p.type.value for i in cart.items if (p := get_product(i.product_id))}
+
+        def _score(p: Product) -> int:
+            s = 0
+            if "phone" in cart_types and p.type.value == "accessory":
+                s += 3
+            if "phone" in cart_types and p.type.value == "plan":
+                s += 2
+            return s
+
+        candidates = [p for p in load_catalog() if p.id not in in_cart_ids and p.in_stock and p.stock > 0]
+        return sorted(candidates, key=_score, reverse=True)[:limit]
 
     def cart_summary(self, session_id: str) -> dict:
         """Read-only, display-ready cart summary for the checkout review screen.
