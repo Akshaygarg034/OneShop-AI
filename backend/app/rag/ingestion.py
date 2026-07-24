@@ -34,7 +34,7 @@ for product in products:
     {', '.join(product.get('features', []))}
     """
 
-    documents.append(
+    documents.append( 
         Document(
             page_content=content,
             metadata={
