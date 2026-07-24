@@ -1,49 +1,67 @@
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
+"""
+RAG retrieval: semantic search over the product catalog in Qdrant. Owned by P2.
+
+`search(query, k)` returns lightweight hits ({product_id, score, ...}); the caller
+(app/retrieval/retriever.py) maps product_ids back to authoritative Product
+objects (prices/stock from Postgres). Nothing here decides eligibility - it only
+finds candidates by meaning.
+
+The embedding model + Qdrant client are built lazily and cached, so importing
+this module is cheap and the ~90 MB model only loads on first real search.
+
+Manual test:  cd backend && python -m app.rag.retriever
+"""
+import logging
+from functools import lru_cache
+
+from app.config import EMBED_MODEL, QDRANT_COLLECTION, QDRANT_URL
+
+logger = logging.getLogger(__name__)
 
 
-COLLECTION_NAME = "product_embeddings"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+@lru_cache(maxsize=1)
+def _vector_store():
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from langchain_qdrant import QdrantVectorStore
+    from qdrant_client import QdrantClient
 
-embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-
-client = QdrantClient(url="http://localhost:6333")
-
-vector_store = QdrantVectorStore(
-    client=client,
-    collection_name=COLLECTION_NAME,
-    embedding=embeddings,
-)
-
-
-retriever = vector_store.as_retriever(
-    search_kwargs={"k": 3}
-)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    client = QdrantClient(url=QDRANT_URL)
+    return QdrantVectorStore(
+        client=client,
+        collection_name=QDRANT_COLLECTION,
+        embedding=embeddings,
+    )
 
 
-print("Product Search Ready")
-print("Type 'exit' to quit\n")
+def search(query: str, k: int = 8) -> list[dict]:
+    """Semantic top-k search. Returns [{product_id, score, name, content}].
+    Raises if Qdrant/deps are unavailable - callers decide how to fall back."""
+    store = _vector_store()
+    hits = store.similarity_search_with_score(query, k=k)
+    results = []
+    for doc, score in hits:
+        md = doc.metadata or {}
+        results.append({
+            "product_id": md.get("product_id"),
+            "score": float(score),
+            "name": md.get("name", ""),
+            "content": doc.page_content,
+        })
+    return results
 
 
-while True:
+def _main() -> None:
+    logging.basicConfig(level=logging.INFO)
+    print("Product semantic search. Type 'exit' to quit.\n")
+    while True:
+        query = input("Search: ").strip()
+        if query.lower() in {"exit", "quit", ""}:
+            break
+        for i, hit in enumerate(search(query, k=3), start=1):
+            print(f"  {i}. {hit['name']}  [{hit['product_id']}]  score={hit['score']:.3f}")
+        print()
 
-    query = input("Search: ").strip()
-    if query.lower() == "exit":
-        break
 
-    products = retriever.invoke(query)
-    print("\nRecommended Products")
-    print("-" * 50)
-
-    for index, product in enumerate(products, start=1):
-
-        print(f"\nResult {index}")
-
-        print("Product Details:")
-        print(product.metadata)
-
-        print("\nProduct Description:")
-        print(product.page_content)
-
-    print("-" * 50)
+if __name__ == "__main__":
+    _main()

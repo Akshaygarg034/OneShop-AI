@@ -35,10 +35,16 @@ XAI_MODEL = os.getenv("XAI_MODEL", "grok-2-latest")
 
 # Qdrant (P2)
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "telekom_catalog")
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "product_embeddings")
 
 # Embeddings (P2) - Grok has no embeddings API, so use a local open model.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+
+# Semantic retrieval switch, independent of MOCK_MODE so RAG can be real while
+# intent/recommendation still run on their mocks. When true, retrieve() does a
+# Qdrant vector search and falls back to keyword matching if Qdrant/deps are
+# unavailable. Requires the RAG deps installed and the collection ingested.
+RAG_ENABLED = _bool("RAG_ENABLED", "false")
 
 # Session persistence (P4).
 #   SESSION_BACKEND: auto | memory | supabase
@@ -55,8 +61,15 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")   # service_role key (POC: RLS disa
 AUTH_SECRET = os.getenv("AUTH_SECRET", "dev-insecure-secret-change-me")
 AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 7)))  # 7 days
 
-# Path to the catalog file (P2 owns the data).
+# Path to the legacy catalog file (P2 owns the data). Used as a final fallback.
 CATALOG_PATH = os.getenv(
     "CATALOG_PATH",
     os.path.join(os.path.dirname(__file__), "..", "data", "catalog.json"),
 )
+
+# Catalog source:
+#   auto/postgres -> read prices/stock from the Supabase `catalog_products` table,
+#                    falling back to the JSON data files if it's empty/unreachable.
+#   json          -> always read the JSON files (fast, offline; used by CI/evals).
+CATALOG_BACKEND = os.getenv("CATALOG_BACKEND", "auto")
+CATALOG_TABLE = os.getenv("CATALOG_TABLE", "catalog_products")
