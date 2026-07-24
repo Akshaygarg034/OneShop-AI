@@ -17,7 +17,7 @@ import logging
 import os
 from uuid import uuid4
 
-from app.config import EMBED_MODEL, QDRANT_COLLECTION, QDRANT_URL
+from app.config import EMBED_MODEL, MODEL_CACHE_DIR, QDRANT_COLLECTION, QDRANT_URL
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ def ingest(data_file: str = _DATA_FILE, recreate: bool = True) -> int:
     documents = [_build_document(p) for p in products]
     logger.info("Embedding %d products with %s...", len(documents), EMBED_MODEL)
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
     client = QdrantClient(url=QDRANT_URL)
 
     if recreate and client.collection_exists(QDRANT_COLLECTION):

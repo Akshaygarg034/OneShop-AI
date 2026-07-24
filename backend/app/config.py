@@ -44,6 +44,12 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "product_embeddings")
 
 # Embeddings (P2) - Grok has no embeddings API, so use a local open model.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+# Local directory where the downloaded model is cached (relative to backend/).
+# Once downloaded it is read from disk on every subsequent start - no internet.
+MODEL_CACHE_DIR = os.getenv(
+    "MODEL_CACHE_DIR",
+    os.path.join(os.path.dirname(__file__), "..", "models"),
+)
 
 # Semantic retrieval switch, independent of MOCK_MODE so RAG can be real while
 # intent/recommendation still run on their mocks. When true, retrieve() does a
