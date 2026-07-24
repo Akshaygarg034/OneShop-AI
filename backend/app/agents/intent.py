@@ -73,6 +73,7 @@ class _IntentOutput(BaseModel):
     brand: Optional[str] = None
     priority_features: list[str] = Field(default_factory=list)
     product_types: list[str] = Field(default_factory=list)
+    is_shopping_related: bool = True
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
 
@@ -90,6 +91,9 @@ Telekom phone/plan/accessory shop. Fill the response schema with:
                      (protection=cases/screen protectors, audio=earbuds/headphones,
                      charging=chargers/power adapters)
   product_types: subset of [phone, plan, accessory]
+  is_shopping_related: false when the customer is asking about something outside
+         shopping for Telekom phones, plans, bundles, or accessories. In that
+         case, do not extract a product preference.
   clarification_needed: true ONLY if message is too vague to act on at all
   clarification_question: a single short question if clarification_needed, else null
 
@@ -165,6 +169,7 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
         brand=brand,
         priority_features=features,
         product_types=product_types,
+        is_shopping_related=_is_shopping_related(message, history),
         clarification_needed=clarify,
         clarification_question=(
             "Happy to help! Is this mainly for calls and messaging, or do you also want "
@@ -219,6 +224,7 @@ def _extract_real(message: str, history: list[dict], profile: PreferenceProfile)
         brand=brand,
         priority_features=[f for f in result.priority_features if f in valid_features],
         product_types=[t for t in result.product_types if t in valid_types],
+        is_shopping_related=result.is_shopping_related and _is_shopping_related(message, history),
         clarification_needed=result.clarification_needed,
         clarification_question=result.clarification_question,
         profile=profile,

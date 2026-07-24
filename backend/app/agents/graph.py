@@ -31,6 +31,26 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     # multi-turn context survives restarts without bleeding across unrelated
     # conversation threads.
     intent = extract_intent(message, conv_history, session.profile)
+
+    # Scope guard: this assistant only answers Telekom shopping questions. Do
+    # not search the catalog (or fabricate a product answer) for unrelated asks.
+    if not intent.is_shopping_related:
+        reply = (
+            "I’m here to help with Telekom shopping—phones, plans, bundles, and "
+            "accessories. I can’t help with that question, but I’d be happy to "
+            "help you find the right product or plan."
+        )
+        conv_history.append({"role": "user", "content": message})
+        conv_history.append({"role": "assistant", "content": reply, "recommendations": []})
+        return ChatResponse(
+            reply_text=reply,
+            recommendations=[],
+            nba=[],
+            cart=session.cart,
+            receipts=Receipts(),
+            conversation_id=conversation_id,
+        )
+
     session.profile = update_profile(session.profile, message, intent)
     intent.profile = session.profile
 

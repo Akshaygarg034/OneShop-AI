@@ -61,6 +61,7 @@ class Intent(BaseModel):
     brand: Optional[str] = None          # explicit brand ask (e.g. "Apple") -> HARD filter
     priority_features: list[str] = Field(default_factory=list)
     product_types: list[str] = Field(default_factory=list)  # explicit type ask -> HARD filter
+    is_shopping_related: bool = True
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
     profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
