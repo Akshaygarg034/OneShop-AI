@@ -55,6 +55,40 @@ _BRAND_WORDS = {
 _VALID_BRANDS = set(_BRAND_WORDS.keys())
 
 
+# Deterministic backstop for the scope guardrail (graph.py refuses/redirects
+# when is_shopping_related is False). On the real path this is ANDed with the
+# LLM's own judgment - "AI generates, deterministic rules decide": a permissive
+# or confused model can't be the only thing standing between a customer and an
+# out-of-scope action like cancelling their contract. On the mock path (no LLM)
+# this is the ONLY signal.
+_OFF_TOPIC_PHRASES = [
+    # account / contract actions this assistant must not attempt - Telekom
+    # support handles these (see PROJECT_OVERVIEW.md Scenario G)
+    "cancel my contract", "cancel my subscription", "cancel subscription",
+    "cancel my plan", "cancel contract", "terminate my contract",
+    "delete my account", "close my account", "delete account",
+    # support/legal escalations outside a shopping assistant's job
+    "billing complaint", "file a complaint", "speak to a human",
+    "customer support", "customer service number", "refund me",
+    "legal action", "sue you", "lawyer",
+    # generic off-topic chit-chat / unrelated domains
+    "the weather", "tell me a joke", "write me a poem", "write a poem",
+    "capital of", "recipe for", "how do i cook", "stock market",
+    "cryptocurrency", "bitcoin price",
+]
+
+
+def _is_shopping_related(message: str, history: list[dict]) -> bool:
+    """Default TRUE (assume on-topic) - only flip to False on a clear, known
+    off-topic signal, so this never blocks a legitimate shopping question that
+    happens to use unusual phrasing. `history` isn't consulted here: a short
+    follow-up ("yes", "sure") with no off-topic phrase is already on-topic by
+    the default, and follow-up resolution itself is handled upstream (the
+    OpenAI prompt / mock parser), not by this scope guardrail."""
+    msg = message.lower()
+    return not any(phrase in msg for phrase in _OFF_TOPIC_PHRASES)
+
+
 def _canonical_brand(raw: Optional[str]) -> Optional[str]:
     """Normalise a free-text brand ('iPhone', 'galaxy') to a catalog brand."""
     if not raw:
