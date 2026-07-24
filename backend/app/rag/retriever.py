@@ -52,8 +52,12 @@ def search(query: str, k: int = 8) -> list[dict]:
     Raises if Qdrant/deps are unavailable - callers decide how to fall back."""
     store = _vector_store()
     hits = store.similarity_search_with_score(query, k=k)
+    
     results = []
+    SIMILARITY_THRESHOLD = 0.6 
     for doc, score in hits:
+        if float(score) < SIMILARITY_THRESHOLD:
+            continue
         md = doc.metadata or {}
         results.append({
             "product_id": md.get("product_id"),
@@ -61,6 +65,7 @@ def search(query: str, k: int = 8) -> list[dict]:
             "name": md.get("name", ""),
             "content": doc.page_content,
         })
+    print(f"results: {results}")
     return results
 
 
