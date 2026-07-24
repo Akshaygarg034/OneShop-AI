@@ -20,17 +20,26 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def _vector_store():
+def _embeddings():
+    """The ~90MB local embedding model. Cached separately from the Qdrant
+    connection: lru_cache does NOT cache raised exceptions, so if it were bundled
+    into _vector_store() below, a transient Qdrant hiccup would re-trigger a full
+    model reload on every subsequent call, not just re-attempt the Qdrant part."""
     from langchain_huggingface import HuggingFaceEmbeddings
+
+    return HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
+
+
+@lru_cache(maxsize=1)
+def _vector_store():
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
     client = QdrantClient(url=QDRANT_URL)
     return QdrantVectorStore(
         client=client,
         collection_name=QDRANT_COLLECTION,
-        embedding=embeddings,
+        embedding=_embeddings(),
     )
 
 

@@ -1,0 +1,3 @@
+# Downloaded embedding model cache (sentence-transformers/huggingface_hub).
+# Lives outside backend/ deliberately - see app/config.py::MODEL_CACHE_DIR.
+.model_cache/
