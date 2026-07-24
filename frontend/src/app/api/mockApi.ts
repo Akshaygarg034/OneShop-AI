@@ -2,7 +2,7 @@ import type {
   Product, AppNotification, LiveActivity, RegisterPayload, LoginPayload, AuthUser,
   ShippingDetails, PaymentDetails,
 } from "../types";
-import { getSessionId, setSessionId, getAuthToken, setAuthToken } from "./session";
+import { getSessionId, setSessionId, getAuthToken, setAuthToken, clearSessionId } from "./session";
 
 /**
  * Real API client. Kept the filename/exports from the original Figma mock so no
@@ -236,8 +236,9 @@ export async function loginUser(payload: LoginPayload): Promise<AuthUser> {
 
 export function logoutUser(): void {
   setAuthToken(null);
-  // Deliberately keep session_id as-is (it's the user_id now) so re-login on
-  // this browser continues the same cart/history.
+  // Reset to a fresh guest session so the logged-out user's cart is not visible
+  // to whoever opens the browser next. Re-login will restore their server-side cart.
+  clearSessionId();
 }
 
 // Restores the logged-in user on page load from a stored token, if any.

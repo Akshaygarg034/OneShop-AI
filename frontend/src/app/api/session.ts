@@ -32,6 +32,13 @@ export function setSessionId(id: string): void {
   window.dispatchEvent(new Event("oneshop-session-changed"));
 }
 
+// Called on logout: start a fresh anonymous session so the previous user's
+// cart and history are not visible to the next visitor on this device.
+export function clearSessionId(): void {
+  localStorage.setItem(SESSION_KEY, randomGuestId());
+  window.dispatchEvent(new Event("oneshop-session-changed"));
+}
+
 export function getAuthToken(): string | null {
   return localStorage.getItem("auth_token");
 }
