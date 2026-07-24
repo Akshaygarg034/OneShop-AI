@@ -21,7 +21,11 @@ from app.retrieval.retriever import retrieve
 
 def run_pipeline(message: str, session) -> ChatResponse:
     # 1. Understand + learn (P1)
-    intent = extract_intent(message, session.history, session.profile)
+    # Pass session_id so intent extraction loads multi-turn history from Supabase
+    # as proper LangChain HumanMessage/AIMessage objects - this is what keeps
+    # context alive across server restarts (kill uvicorn, restart it: the
+    # conversation is still there because it's persisted in Supabase).
+    intent = extract_intent(message, session.history, session.profile, session.session_id)
     session.profile = update_profile(session.profile, message, intent)
     intent.profile = session.profile
 

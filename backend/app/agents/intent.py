@@ -9,9 +9,11 @@ REAL:  OpenAI extracts structured JSON matching the Intent contract. Any failure
        mock parser automatically - flipping MOCK_MODE=false can never 500 the
        pipeline, it just prefers the real extraction when it's available.
 """
-import json
 import logging
 import re
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 from app.config import MOCK_MODE
 from app.contracts.models import Intent, PreferenceProfile
@@ -27,32 +29,49 @@ _FEATURE_WORDS = {
     "unlimited": ["unlimited", "lots of data", "stream", "streaming"],
 }
 
-_SYSTEM_PROMPT = """You extract shopping intent from a customer's message for a \
-Telekom phone/plan/accessory shop. Reply with ONLY a JSON object, no prose, \
-matching exactly this shape:
+# Structured output schema - OpenAI fills this; profile is added by us afterwards.
+class _IntentOutput(BaseModel):
+    use_case: str = ""
+    budget_monthly_max: Optional[float] = None
+    priority_features: list[str] = Field(default_factory=list)
+    product_types: list[str] = Field(default_factory=list)
+    clarification_needed: bool = False
+    clarification_question: Optional[str] = None
 
-{
-  "use_case": "<short paraphrase of what they want>",
-  "budget_monthly_max": <number or null>,
-  "priority_features": [<subset of: "camera","eu_roaming","gaming","5g","unlimited">],
-  "product_types": [<subset of: "phone","plan","accessory">],
-  "clarification_needed": <true|false>,
-  "clarification_question": "<a single short question, or null>"
-}
+
+_SYSTEM_PROMPT = """You extract shopping intent from a customer's message for a \
+Telekom phone/plan/accessory shop. Fill the response schema with:
+
+  use_case: short paraphrase of what they want
+  budget_monthly_max: EUR/month number if mentioned (e.g. "under 40" -> 40), else null
+  priority_features: subset of [camera, eu_roaming, gaming, 5g, unlimited]
+  product_types: subset of [phone, plan, accessory]
+  clarification_needed: true ONLY if message is too vague to act on at all
+  clarification_question: a single short question if clarification_needed, else null
 
 Rules:
-- clarification_needed=true ONLY if the message is too vague to act on at all
-  (no budget, no feature, no product type, and fewer than ~6 words).
-- budget_monthly_max is a EUR/month figure if mentioned (e.g. "under 40 euros" -> 40).
+- clarification_needed=true only if no budget, no feature, no product type, fewer than ~6 words.
 - Never invent features/types not implied by the message.
 """
 
 
-def extract_intent(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
+def extract_intent(
+    message: str,
+    history: list[dict],
+    profile: PreferenceProfile,
+    session_id: str = "",
+) -> Intent:
+    """Extract intent from *message* in context of *history*.
+
+    Pass *session_id* to enable LangChain history management: the conversation
+    will be loaded as proper HumanMessage/AIMessage objects directly from the
+    Supabase-backed session store.  This is what keeps context alive even when
+    the server restarts mid-conversation.
+    """
     if MOCK_MODE:
         return _extract_mock(message, history, profile)
     try:
-        return _extract_real(message, history, profile)
+        return _extract_real(message, history, profile, session_id)
     except Exception as e:  # noqa - real extraction must never crash the pipeline
         logger.warning("OpenAI intent extraction failed (%s); falling back to mock parsing.", e)
         return _extract_mock(message, history, profile)
@@ -97,39 +116,63 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
     )
 
 
-def _extract_real(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
-    from openai import OpenAI  # heavy import, kept local so mock mode needs nothing installed
+def _extract_real(
+    message: str,
+    history: list[dict],
+    profile: PreferenceProfile,
+    session_id: str = "",
+) -> Intent:
+    """Real extraction via openai's native Pydantic structured output.
 
+    Uses client.beta.chat.completions.parse(response_format=_IntentOutput)
+    instead of fragile json.loads(), and loads multi-turn context from the
+    Supabase-backed SessionChatHistory (LangChain BaseChatMessageHistory) so
+    history survives server restarts and device switches.
+    """
+    from openai import OpenAI
+
+    from app.agents.history import session_history, to_lc_message
     from app.config import OPENAI_API_KEY, OPENAI_MODEL
 
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY not set")
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    recent = history[-6:] if history else []
-    context = "\n".join(f"{h['role']}: {h['content']}" for h in recent)
+    # Load history as LangChain messages from Supabase, then convert to openai dicts
+    if session_id:
+        from langchain_core.messages import AIMessage
+        lc_past = session_history(session_id).messages[-6:]
+        past_dicts = [
+            {"role": "assistant" if isinstance(m, AIMessage) else "user", "content": m.content}
+            for m in lc_past
+        ]
+    else:
+        past_dicts = history[-6:]
 
-    resp = client.chat.completions.create(
+    messages = (
+        [{"role": "system", "content": _SYSTEM_PROMPT}]
+        + past_dicts
+        + [{"role": "user", "content": message}]
+    )
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    resp = client.beta.chat.completions.parse(
         model=OPENAI_MODEL,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": f"Recent conversation:\n{context}\n\nNew message: {message}"},
-        ],
+        messages=messages,
+        response_format=_IntentOutput,
         temperature=0,
         timeout=15,
     )
-    data = json.loads(resp.choices[0].message.content)
+    result: _IntentOutput = resp.choices[0].message.parsed
 
     valid_features = set(_FEATURE_WORDS.keys())
     valid_types = {"phone", "plan", "accessory"}
 
     return Intent(
-        use_case=str(data.get("use_case") or message),
-        budget_monthly_max=data.get("budget_monthly_max") or profile.budget_monthly_max,
-        priority_features=[f for f in (data.get("priority_features") or []) if f in valid_features],
-        product_types=[t for t in (data.get("product_types") or []) if t in valid_types],
-        clarification_needed=bool(data.get("clarification_needed", False)),
-        clarification_question=data.get("clarification_question"),
+        use_case=result.use_case or message,
+        budget_monthly_max=result.budget_monthly_max or profile.budget_monthly_max,
+        priority_features=[f for f in result.priority_features if f in valid_features],
+        product_types=[t for t in result.product_types if t in valid_types],
+        clarification_needed=result.clarification_needed,
+        clarification_question=result.clarification_question,
         profile=profile,
     )

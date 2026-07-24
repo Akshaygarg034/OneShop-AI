@@ -1,6 +1,6 @@
 # Backend — Telekom Smart Shopping Assistant
 
-FastAPI + LangGraph + Grok + Qdrant. Runs on **mock data** out of the box (no keys).
+FastAPI + LangGraph + OpenAI + Qdrant. Runs on **mock data** out of the box (no keys).
 
 ## Run (mock mode)
 ```bash
@@ -45,7 +45,7 @@ python -m app.rag.ingestion               # embed data/products_vector.json -> Q
 python -m app.rag.retriever               # optional: manual search REPL
 ```
 
-**3. Grok generation (P1/P3):** set `XAI_API_KEY` and flip `MOCK_MODE=false`.
+**3. OpenAI generation (P1/P3):** set `OPENAI_API_KEY` and flip `MOCK_MODE=false`.
 
 ### Data split (prices in Postgres, meaning in the vector DB)
 - `data/products_postgres.json` → seeds `catalog_products` (id, prices, stock, compatibility).
@@ -73,7 +73,7 @@ evals/run_evals.py      - proof harness (offline; some cases skip if Qdrant is d
 ```
 
 Switches in `.env` / `app/config.py`:
-- `MOCK_MODE`        - Grok generation on/off (intent, "why")
+- `MOCK_MODE`        - OpenAI generation on/off (intent, "why")
 - `RAG_ENABLED`      - semantic Qdrant retrieval vs keyword matching
 - `CATALOG_BACKEND`  - `auto` (Postgres+fallback) or `json`
 - `SESSION_BACKEND`  - `auto`/`memory`/`supabase`

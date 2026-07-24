@@ -42,7 +42,7 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "product_embeddings")
 
-# Embeddings (P2) - Grok has no embeddings API, so use a local open model.
+# Embeddings (P2) - OpenAI has no affordable embeddings for local RAG, so use a local open model.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 # Local directory where the downloaded model is cached (relative to backend/).
 # Once downloaded it is read from disk on every subsequent start - no internet.
