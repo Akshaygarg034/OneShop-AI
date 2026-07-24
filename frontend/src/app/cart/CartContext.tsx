@@ -80,6 +80,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-fetch under the new identity when login/register swaps session_id from
+  // the guest id to the user_id (the backend has already merged the guest
+  // cart into the account by then).
+  useEffect(() => {
+    window.addEventListener("oneshop-session-changed", refresh);
+    return () => window.removeEventListener("oneshop-session-changed", refresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const addItem = (product: Product, qty = 1) => {
     catalogRef.current.set(product.id, product);
     postCart("/cart/add", { product_id: product.id, qty }).then(refresh);

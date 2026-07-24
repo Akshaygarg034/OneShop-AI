@@ -15,7 +15,10 @@ qdrant-client==1.11.2
 sentence-transformers==3.1.1
 
 # --- Real mode: session persistence (P4) ---
-supabase==2.7.4
+# 2.7.4's client constructor rejected any non-JWT key, so it raised
+# "Invalid API key" for the new sb_secret_/sb_publishable_ keys before ever
+# hitting the network. 2.31.0 accepts the new key format.
+supabase==2.31.0
 
 # --- Testing (P4) ---
 pytest==8.3.3

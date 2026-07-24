@@ -18,9 +18,14 @@ installed.
 """
 from __future__ import annotations
 
+import logging
+
 from app.config import SESSION_BACKEND, SUPABASE_KEY, SUPABASE_URL
 from app.contracts.models import Cart, CartItem, PreferenceProfile, Product
 from app.retrieval.catalog import get_product, load_catalog
+from app.supabase_diag import describe_supabase_error
+
+logger = logging.getLogger(__name__)
 
 # Product types billed monthly (device-on-plan / tariffs) vs one-time (accessories).
 _MONTHLY_TYPES = {"phone", "plan"}
@@ -115,6 +120,7 @@ class SupabaseBackend:
         from supabase import create_client  # heavy import, kept local
         self._client = create_client(url, key)
         self._table = table
+        self._url = url
         # Fail fast so _make_backend can fall back to memory if creds/table are wrong.
         self._client.table(self._table).select("session_id").limit(1).execute()
 
@@ -130,7 +136,10 @@ class SupabaseBackend:
             if resp.data:
                 return Session.from_dict(session_id, resp.data[0])
         except Exception as e:  # noqa - never let a read blip break a turn
-            print(f"[session] Supabase read failed for {session_id}: {e}")
+            logger.error(
+                "session: Supabase read failed for %s - %s",
+                session_id, describe_supabase_error(e, self._url),
+            )
         return Session(session_id)
 
     def save(self, session: Session) -> None:
@@ -139,7 +148,10 @@ class SupabaseBackend:
                 session.to_dict(), on_conflict="session_id"
             ).execute()
         except Exception as e:  # noqa - a write blip must not crash the demo
-            print(f"[session] Supabase write failed for {session.session_id}: {e}")
+            logger.error(
+                "session: Supabase write failed for %s - %s",
+                session.session_id, describe_supabase_error(e, self._url),
+            )
 
 
 def _make_backend():
@@ -147,14 +159,18 @@ def _make_backend():
     use_supabase = want == "supabase" or (want == "auto" and SUPABASE_URL and SUPABASE_KEY)
     if use_supabase:
         if not (SUPABASE_URL and SUPABASE_KEY):
-            print("[session] SESSION_BACKEND=supabase but SUPABASE_URL/KEY missing; using memory.")
+            logger.warning("SESSION_BACKEND=supabase but SUPABASE_URL/KEY missing; using in-memory sessions.")
             return MemoryBackend()
         try:
             backend = SupabaseBackend(SUPABASE_URL, SUPABASE_KEY)
-            print("[session] using Supabase persistence.")
+            logger.info("session: using Supabase persistence.")
             return backend
         except Exception as e:  # noqa - keep the demo bulletproof
-            print(f"[session] Supabase unavailable ({e}); falling back to in-memory.")
+            logger.error(
+                "session: Supabase unavailable, falling back to in-memory (sessions won't "
+                "survive a restart) - %s",
+                describe_supabase_error(e, SUPABASE_URL),
+            )
             return MemoryBackend()
     return MemoryBackend()
 

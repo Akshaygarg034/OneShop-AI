@@ -2,7 +2,7 @@ import type {
   Product, AppNotification, LiveActivity, RegisterPayload, LoginPayload, AuthUser,
   ShippingDetails, PaymentDetails,
 } from "../types";
-import { getSessionId, setSessionId, setAuthToken } from "./session";
+import { getSessionId, setSessionId, getAuthToken, setAuthToken } from "./session";
 
 /**
  * Real API client. Kept the filename/exports from the original Figma mock so no
@@ -236,4 +236,17 @@ export function logoutUser(): void {
   setAuthToken(null);
   // Deliberately keep session_id as-is (it's the user_id now) so re-login on
   // this browser continues the same cart/history.
+}
+
+// Restores the logged-in user on page load from a stored token, if any.
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const token = getAuthToken();
+  if (!token) return null;
+  const res = await fetch(`${BASE}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    setAuthToken(null); // stale/expired token - drop it rather than retry forever
+    return null;
+  }
+  const data = await res.json();
+  return { userId: data.user_id, email: data.email, name: data.name, token: data.token };
 }

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Send, Mic, MicOff, Sparkles, ShoppingCart, X, Minus,
-  PanelLeftClose, PanelRightClose, Bot, User, Check,
+  PanelLeftClose, PanelRightClose, Check, Info,
 } from "lucide-react";
 import { useCart } from "../cart/CartContext";
 import { askAssistant } from "../api/mockApi";
 import { formatEUR } from "../lib/format";
 import { useSpeechRecognition } from "../lib/useSpeechRecognition";
-import type { ChatMessage } from "../types";
+import type { ChatMessage, Product } from "../types";
 
 type DockSide = "left" | "right";
 
@@ -15,7 +15,7 @@ const initialMessages: ChatMessage[] = [
   {
     id: 1,
     role: "assistant",
-    text: "Hi! 👋 I'm your AI shopping assistant. Ask me about phones, plans, bundles, or accessories and I'll pull matching options from the catalog.",
+    text: "Hi — I'm your OneShop assistant. Ask about phones, plans, bundles, or accessories and I'll find options from the catalog.",
     timestamp: "09:42",
   },
 ];
@@ -23,6 +23,35 @@ const initialMessages: ChatMessage[] = [
 const suggestions = ["Show me plans", "Best camera phone", "Any bundle deals?", "Headphones"];
 
 const DOCK_STORAGE_KEY = "oneshop-chat-dock";
+
+const WhyPanel = ({ product, onClose }: { product: Product; onClose: () => void }) => (
+  <div
+    style={{
+      background: "var(--surface)",
+      border: "1px solid rgba(var(--primary-rgb),0.2)",
+      borderRadius: 12,
+      padding: "10px 12px",
+      marginTop: 4,
+    }}
+  >
+    <div className="flex items-center justify-between mb-2">
+      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--primary)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+        Why recommended
+      </span>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 0, display: "flex" }}>
+        <X size={12} />
+      </button>
+    </div>
+    <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+      {product.reasons.slice(0, 3).map((reason, i) => (
+        <li key={i} className="flex gap-2" style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.45 }}>
+          <Check size={11} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />
+          {reason}
+        </li>
+      ))}
+    </ul>
+  </div>
+);
 
 export function FloatingChat() {
   const [open, setOpen] = useState(false);
@@ -34,6 +63,7 @@ export function FloatingChat() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [whyProductId, setWhyProductId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { addItem, isInCart } = useCart();
 
@@ -60,6 +90,7 @@ export function FloatingChat() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setTyping(true);
+    setWhyProductId(null);
 
     askAssistant(text)
       .then(({ reply, products }) => {
@@ -139,8 +170,8 @@ export function FloatingChat() {
           height: "min(620px, calc(100vh - 48px))",
           background: "var(--card)",
           border: "1px solid var(--border)",
-          borderRadius: 16,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+          borderRadius: 20,
+          boxShadow: "0 16px 48px rgba(0,0,0,0.2)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -154,7 +185,7 @@ export function FloatingChat() {
         {/* Header */}
         <div
           style={{
-            padding: "12px 14px",
+            padding: "14px 16px",
             borderBottom: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
@@ -178,28 +209,28 @@ export function FloatingChat() {
             <Sparkles size={14} style={{ color: "#fff" }} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--foreground)" }}>OneShop AI Assistant</p>
-            <p style={{ fontSize: 10, color: "#22C55E" }}>● Online now</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>OneShop Assistant</p>
+            <p style={{ fontSize: 10.5, color: "var(--muted-foreground)" }}>Personalized product help</p>
           </div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 2, flexShrink: 0 }}>
             <button
               onClick={() => setDock((d) => (d === "right" ? "left" : "right"))}
               title={dock === "right" ? "Move to left side" : "Move to right side"}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 5, display: "flex" }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 6, display: "flex", borderRadius: 8 }}
             >
               {dock === "right" ? <PanelLeftClose size={15} /> : <PanelRightClose size={15} />}
             </button>
             <button
               onClick={() => setOpen(false)}
               title="Minimize"
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 5, display: "flex" }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 6, display: "flex", borderRadius: 8 }}
             >
               <Minus size={15} />
             </button>
             <button
               onClick={() => setOpen(false)}
               title="Close"
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 5, display: "flex" }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 6, display: "flex", borderRadius: 8 }}
             >
               <X size={15} />
             </button>
@@ -207,92 +238,74 @@ export function FloatingChat() {
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
           {messages.map((msg) => (
             <div
               key={msg.id}
               style={{
                 display: "flex",
-                gap: 8,
-                flexDirection: msg.role === "user" ? "row-reverse" : "row",
-                alignItems: "flex-start",
+                flexDirection: "column",
+                alignItems: msg.role === "user" ? "flex-end" : "flex-start",
+                gap: 6,
               }}
             >
               <div
                 style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: msg.role === "assistant"
-                    ? "linear-gradient(135deg, var(--primary), #7B61FF)"
-                    : "var(--muted)",
-                  border: msg.role === "user" ? "1px solid var(--border)" : "none",
+                  maxWidth: "88%",
+                  padding: "10px 14px",
+                  borderRadius: msg.role === "user" ? 16 : 16,
+                  background: msg.role === "user" ? "var(--primary)" : "var(--muted)",
+                  border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
+                  fontSize: 12.5,
+                  color: msg.role === "user" ? "#fff" : "var(--foreground)",
+                  lineHeight: 1.55,
+                  whiteSpace: "pre-wrap",
                 }}
               >
-                {msg.role === "assistant"
-                  ? <Bot size={12} style={{ color: "#fff" }} />
-                  : <User size={12} style={{ color: "var(--muted-foreground)" }} />
-                }
+                {msg.text}
               </div>
 
-              <div style={{ maxWidth: "80%", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div
-                  style={{
-                    padding: "9px 12px",
-                    borderRadius: msg.role === "user" ? "10px 3px 10px 10px" : "3px 10px 10px 10px",
-                    background: msg.role === "user" ? "var(--primary)" : "var(--muted)",
-                    fontSize: 12.5,
-                    color: msg.role === "user" ? "#fff" : "var(--foreground)",
-                    lineHeight: 1.55,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {msg.text}
-                </div>
-
-                {msg.products && msg.products.length > 0 && (
-                  <div className="flex gap-2" style={{ flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
-                    {msg.products.map((p) => {
-                      const added = isInCart(p.id);
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            background: "var(--surface)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 8,
-                            padding: 8,
-                            minWidth: 128,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            style={{ width: "100%", height: 72, objectFit: "cover", borderRadius: 5, marginBottom: 6 }}
-                          />
-                          <p style={{ fontSize: 10.5, fontWeight: 600, color: "var(--foreground)", marginBottom: 4, lineHeight: 1.3 }}>{p.name}</p>
-                          <div className="flex items-center justify-between mb-2">
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>{formatEUR(p.price)}</span>
-                            <span style={{ fontSize: 8.5, color: "var(--primary)", background: "rgba(var(--primary-rgb),0.1)", padding: "1px 5px", borderRadius: 10 }}>
-                              {p.aiScore}%
-                            </span>
-                          </div>
+              {msg.products && msg.products.length > 0 && (
+                <div className="flex gap-2.5" style={{ flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2, maxWidth: "100%" }}>
+                  {msg.products.map((p) => {
+                    const added = isInCart(p.id);
+                    const showWhy = whyProductId === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        style={{
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 16,
+                          padding: 10,
+                          minWidth: 140,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <img
+                          src={p.image}
+                          alt={p.name}
+                          style={{ width: "100%", height: 76, objectFit: "cover", borderRadius: 10, marginBottom: 8 }}
+                        />
+                        <p style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)", marginBottom: 4, lineHeight: 1.3 }}>{p.name}</p>
+                        <div className="flex items-center justify-between mb-2">
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>{formatEUR(p.price)}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--primary)", background: "rgba(var(--primary-rgb),0.1)", padding: "2px 6px", borderRadius: 20 }}>
+                            {p.aiScore}% match
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5">
                           <button
                             onClick={() => addItem(p)}
                             disabled={added}
                             style={{
-                              width: "100%",
-                              padding: "5px",
-                              background: added ? "#22C55E" : "var(--primary)",
+                              flex: 1,
+                              padding: "6px 8px",
+                              background: added ? "var(--muted-foreground)" : "var(--primary)",
                               border: "none",
                               borderRadius: 50,
                               color: "#fff",
-                              fontSize: 9.5,
+                              fontSize: 10,
                               fontWeight: 600,
                               cursor: added ? "default" : "pointer",
                               display: "flex",
@@ -301,39 +314,43 @@ export function FloatingChat() {
                               gap: 3,
                             }}
                           >
-                            {added ? <><Check size={9} /> Added</> : <><ShoppingCart size={9} /> Add</>}
+                            {added ? <><Check size={10} /> Added</> : <><ShoppingCart size={10} /> Add</>}
+                          </button>
+                          <button
+                            onClick={() => setWhyProductId(showWhy ? null : p.id)}
+                            title="Why this recommendation?"
+                            style={{
+                              padding: "6px 8px",
+                              background: "transparent",
+                              border: "1.5px solid rgba(var(--primary-rgb),0.3)",
+                              borderRadius: 50,
+                              color: "var(--primary)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Info size={11} />
                           </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        {showWhy && <WhyPanel product={p} onClose={() => setWhyProductId(null)} />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>{msg.timestamp}</span>
-              </div>
+              <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>{msg.timestamp}</span>
             </div>
           ))}
 
           {typing && (
-            <div className="flex gap-2 items-center">
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, var(--primary), #7B61FF)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Bot size={12} style={{ color: "#fff" }} />
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
                   background: "var(--muted)",
-                  borderRadius: "3px 10px 10px 10px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 16,
                   padding: "10px 14px",
                   display: "flex",
                   gap: 4,
@@ -360,22 +377,24 @@ export function FloatingChat() {
         </div>
 
         {/* Suggestions */}
-        <div style={{ padding: "6px 14px", borderTop: "1px solid var(--border)", display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto" }}>
+        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border)", display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto" }}>
           {suggestions.map((s) => (
             <button
               key={s}
               onClick={() => send(s)}
               disabled={typing}
               style={{
-                padding: "4px 10px",
-                borderRadius: 20,
-                border: "1px solid var(--border)",
+                padding: "6px 12px",
+                borderRadius: 50,
+                border: "1.5px solid var(--border)",
                 background: "transparent",
-                color: "var(--muted-foreground)",
-                fontSize: 10.5,
+                color: "var(--foreground)",
+                fontSize: 11,
+                fontWeight: 600,
                 cursor: typing ? "default" : "pointer",
                 whiteSpace: "nowrap",
                 flexShrink: 0,
+                opacity: typing ? 0.5 : 1,
               }}
             >
               {s}
@@ -384,7 +403,7 @@ export function FloatingChat() {
         </div>
 
         {/* Input */}
-        <div style={{ padding: "10px 14px 12px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, flexShrink: 0 }}>
           <div style={{ flex: 1, position: "relative" }}>
             <input
               value={input}
@@ -417,7 +436,7 @@ export function FloatingChat() {
                 opacity: micSupported ? 1 : 0.4,
                 color: listening ? "var(--primary)" : "var(--muted-foreground)",
                 padding: 4,
-                borderRadius: 5,
+                borderRadius: 50,
                 display: "flex",
               }}
             >
@@ -426,15 +445,15 @@ export function FloatingChat() {
           </div>
           <button
             onClick={() => send(input)}
-            disabled={typing}
+            disabled={typing || !input.trim()}
             style={{
               padding: "9px 14px",
               background: "var(--primary)",
               border: "none",
               borderRadius: 50,
               color: "#fff",
-              cursor: typing ? "default" : "pointer",
-              opacity: typing ? 0.6 : 1,
+              cursor: typing || !input.trim() ? "default" : "pointer",
+              opacity: typing || !input.trim() ? 0.5 : 1,
               display: "flex",
               alignItems: "center",
               flexShrink: 0,

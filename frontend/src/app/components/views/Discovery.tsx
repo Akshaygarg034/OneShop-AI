@@ -3,6 +3,7 @@ import { Sparkles, ShoppingCart, Info, Star, TrendingUp, X, Check, RefreshCw } f
 import { useCart } from "../../cart/CartContext";
 import { getProducts } from "../../api/mockApi";
 import { formatEUR } from "../../lib/format";
+import { isAiRecommended } from "../../lib/products";
 import type { Product } from "../../types";
 
 const categories = ["All", "Phones", "Plans", "Accessories", "Bundles", "Smart Home"];
@@ -346,26 +347,28 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                       {inCart ? <Check size={13} /> : <ShoppingCart size={13} />}
                       {inCart ? "In Cart" : product.inStock ? "Add to Cart" : "Out of Stock"}
                     </button>
-                    <button
-                      onClick={() => setWhyProduct(product)}
-                      style={{
-                        padding: "9px 14px",
-                        borderRadius: 50,
-                        border: "1.5px solid rgba(var(--primary-rgb),0.3)",
-                        cursor: "pointer",
-                        background: "transparent",
-                        color: "var(--primary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                      title="Why this recommendation?"
-                    >
-                      <Info size={12} />
-                      Why?
-                    </button>
+                    {isAiRecommended(product) && (
+                      <button
+                        onClick={() => setWhyProduct(product)}
+                        style={{
+                          padding: "9px 14px",
+                          borderRadius: 50,
+                          border: "1.5px solid rgba(var(--primary-rgb),0.3)",
+                          cursor: "pointer",
+                          background: "transparent",
+                          color: "var(--primary)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                        title="Why this recommendation?"
+                      >
+                        <Info size={12} />
+                        Why?
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

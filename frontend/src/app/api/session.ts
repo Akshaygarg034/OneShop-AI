@@ -25,8 +25,11 @@ export function getSessionId(): string {
 }
 
 // Called after register/login: from now on, use the permanent user_id.
+// Fires an event so already-mounted contexts (e.g. the cart) can re-fetch
+// under the new identity instead of only picking it up on next page load.
 export function setSessionId(id: string): void {
   localStorage.setItem(SESSION_KEY, id);
+  window.dispatchEvent(new Event("oneshop-session-changed"));
 }
 
 export function getAuthToken(): string | null {
