@@ -16,8 +16,10 @@ if anything fails, so this doubles as a CI gate. Grouped by what it proves:
 import os
 
 # Force the harness fully offline/deterministic BEFORE app modules read config:
-# JSON catalog, in-memory sessions, no live Supabase/Qdrant calls. This keeps
-# evals fast, reproducible, and unable to pollute the real database.
+# mock generation (no OpenAI calls), JSON catalog, in-memory sessions, no live
+# Supabase/Qdrant calls. Keeps evals fast, free, reproducible, and unable to
+# pollute the real database. (The real OpenAI path is exercised in the demo.)
+os.environ.setdefault("MOCK_MODE", "true")
 os.environ.setdefault("CATALOG_BACKEND", "json")
 os.environ.setdefault("SESSION_BACKEND", "memory")
 
@@ -38,15 +40,15 @@ class SkipCase(Exception):
 
 def _run(message: str):
     """One-shot: fresh session, single message."""
-    return run_pipeline(message, Session("eval"))
+    return run_pipeline(message, Session("eval"), "eval-thread")
 
 
 def _conversation():
-    """Multi-turn: one persistent session, returns a say() that advances it."""
+    """Multi-turn: one persistent session + thread, returns a say() that advances it."""
     session = Session("eval-convo")
 
     def say(message: str):
-        return run_pipeline(message, session)
+        return run_pipeline(message, session, "eval-convo-thread")
 
     return session, say
 
@@ -115,6 +117,37 @@ def t_refuse():
     assert "phone_iphone16pro" not in [x.product_id for x in r.recommendations], \
         "offered an out-of-stock / over-budget iPhone"
     assert r.reply_text.strip(), "expected a graceful reply even when refusing"
+
+
+# --------------------------------------------------------------------------- #
+# CONSTRAINTS - explicit asks become deterministic hard filters               #
+# --------------------------------------------------------------------------- #
+@case("CONSTRAINTS", "a brand request only returns that brand")
+def t_brand_filter():
+    r = _run("show me a Samsung phone")
+    assert r.recommendations, "expected Samsung phones"
+    for rec in r.recommendations:
+        assert _brand(rec.product_id) == "Samsung", \
+            f"{rec.product_id} is not Samsung but was shown for a Samsung request"
+
+
+@case("CONSTRAINTS", "asking for an iPhone never swaps in another brand")
+def t_iphone_no_swap():
+    # iPhone 16 Pro is out of stock, iPhone 15 is over a tight budget -> nothing
+    # eligible. The engine must REFUSE, not silently return a Samsung/Pixel.
+    r = _run("I want an iPhone for 15 euros a month")
+    brands = {_brand(x.product_id) for x in r.recommendations}
+    assert brands <= {"Apple"}, f"an iPhone request returned non-Apple products: {brands}"
+
+
+@case("CONSTRAINTS", "a plan request only returns plans")
+def t_type_filter():
+    r = _run("show me a plan with lots of data")
+    assert r.recommendations, "expected at least one plan"
+    for rec in r.recommendations:
+        p = get_product(rec.product_id)
+        assert p and p.type.value == "plan", \
+            f"{rec.product_id} is a {p.type.value if p else '?'}, not a plan"
 
 
 # --------------------------------------------------------------------------- #
