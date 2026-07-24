@@ -31,7 +31,7 @@ from app.config import (
 logger = logging.getLogger(__name__)
 
 # _EMBED_DIM = 384  # all-MiniLM-L6-v2 output size
-_EMBED_DIM = 512
+_EMBED_DIM = 256
 _DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "catalog.json")
 
 

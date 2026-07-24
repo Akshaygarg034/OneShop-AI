@@ -33,7 +33,7 @@ from langchain_openai import OpenAIEmbeddings
 
 @lru_cache(maxsize=1)
 def _embeddings():
-    return OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512, api_key=os.getenv("OPENAI_API_KEY"))
+    return OpenAIEmbeddings(model="text-embedding-3-small", dimensions=256, api_key=os.getenv("OPENAI_API_KEY"))
 
 @lru_cache(maxsize=1)
 def _vector_store():
