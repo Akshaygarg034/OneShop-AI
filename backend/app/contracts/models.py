@@ -37,6 +37,7 @@ class Product(BaseModel):
     compatible_plans: list[str] = Field(default_factory=list)
     stock: int = 0                      # LIVE fact - checked, never embedded
     in_stock: bool = True
+    image_url: str = ""                 # display image for the frontend
 
 
 class PreferenceProfile(BaseModel):
@@ -109,6 +110,18 @@ class Receipts(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+
+
+class ChatHistoryMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatHistoryResponse(BaseModel):
+    """Persisted conversation for a session - so a returning/logged-in user's
+    history can be shown again (see GET /chat/history)."""
+    session_id: str
+    history: list[ChatHistoryMessage] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):

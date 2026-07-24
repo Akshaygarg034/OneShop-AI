@@ -38,7 +38,7 @@ _VECTOR_JSON = os.path.join(_DATA_DIR, "products_vector.json")
 _PRICE_FIELDS = ("type", "category", "price_monthly", "price_onetime",
                  "stock", "in_stock", "compatible_plans")
 # Fields that describe the product for humans + embeddings (semantic).
-_SEMANTIC_FIELDS = ("name", "brand", "description", "features")
+_SEMANTIC_FIELDS = ("name", "brand", "description", "features", "image_url")
 
 
 def _read_json(path: str) -> list[dict]:
@@ -106,6 +106,7 @@ def _to_product(row: dict) -> Product:
         compatible_plans=_as_list(row.get("compatible_plans")),
         stock=int(row.get("stock") or 0),
         in_stock=bool(row.get("in_stock", True)),
+        image_url=row.get("image_url", ""),
     )
 
 

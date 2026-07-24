@@ -11,7 +11,8 @@
     "features": ["camera", "5g", "eu_roaming", "android"],
     "compatible_plans": ["plan_m", "plan_l"],
     "stock": 12,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_s24",
@@ -25,7 +26,8 @@
     "features": ["camera", "5g", "eu_roaming", "android", "gaming"],
     "compatible_plans": ["plan_m", "plan_l"],
     "stock": 5,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_iphone16pro",
@@ -39,7 +41,8 @@
     "features": ["camera", "5g", "eu_roaming", "ios", "gaming"],
     "compatible_plans": ["plan_l"],
     "stock": 0,
-    "in_stock": false
+    "in_stock": false,
+    "image_url": "https://images.unsplash.com/photo-1592921870789-04563d55041c?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "phone_a55",
@@ -53,7 +56,8 @@
     "features": ["camera", "5g", "android"],
     "compatible_plans": ["plan_s", "plan_m"],
     "stock": 30,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_s",
@@ -67,7 +71,8 @@
     "features": ["10gb", "calls", "germany"],
     "compatible_plans": [],
     "stock": 999,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1580654712603-eb43273aff33?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_m",
@@ -81,7 +86,8 @@
     "features": ["40gb", "eu_roaming", "5g", "calls"],
     "compatible_plans": [],
     "stock": 999,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "plan_l",
@@ -95,7 +101,8 @@
     "features": ["unlimited", "eu_roaming", "5g", "hotspot", "calls"],
     "compatible_plans": [],
     "stock": 999,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_case",
@@ -109,7 +116,8 @@
     "features": ["protection"],
     "compatible_plans": [],
     "stock": 200,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_buds",
@@ -123,7 +131,8 @@
     "features": ["audio", "wireless"],
     "compatible_plans": [],
     "stock": 80,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400&h=400&fit=crop&auto=format"
   },
   {
     "id": "accessory_charger",
@@ -137,6 +146,82 @@
     "features": ["charging"],
     "compatible_plans": [],
     "stock": 150,
-    "in_stock": true
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&h=400&fit=crop&auto=format"
+  },
+  {
+    "id": "phone_pixel9",
+    "type": "phone",
+    "name": "Google Pixel 9",
+    "brand": "Google",
+    "description": "Latest Pixel with an even better camera, on-device AI features, and clean Android.",
+    "price_monthly": 22,
+    "price_onetime": 0,
+    "category": "phones",
+    "features": ["camera", "5g", "eu_roaming", "android", "ai_features"],
+    "compatible_plans": ["plan_m", "plan_l"],
+    "stock": 8,
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&auto=format"
+  },
+  {
+    "id": "phone_iphone15",
+    "type": "phone",
+    "name": "Apple iPhone 15",
+    "brand": "Apple",
+    "description": "Reliable iPhone with a great camera and iOS ecosystem, at a lower price than the Pro line.",
+    "price_monthly": 32,
+    "price_onetime": 0,
+    "category": "phones",
+    "features": ["camera", "5g", "eu_roaming", "ios"],
+    "compatible_plans": ["plan_m", "plan_l"],
+    "stock": 14,
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1592286927505-1def25115558?w=400&h=400&fit=crop&auto=format"
+  },
+  {
+    "id": "plan_young",
+    "type": "plan",
+    "name": "MagentaMobil Young",
+    "brand": "Telekom",
+    "description": "Discounted plan for customers under 28: 30 GB data, EU roaming, 5G.",
+    "price_monthly": 25,
+    "price_onetime": 0,
+    "category": "plans",
+    "features": ["30gb", "eu_roaming", "5g", "calls", "youth_discount"],
+    "compatible_plans": [],
+    "stock": 999,
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1522199755839-a2bacb67c546?w=400&h=400&fit=crop&auto=format"
+  },
+  {
+    "id": "accessory_screen_protector",
+    "type": "accessory",
+    "name": "Tempered Glass Screen Protector",
+    "brand": "Telekom",
+    "description": "Scratch-resistant tempered glass screen protector, fits most flagship phones.",
+    "price_monthly": 0,
+    "price_onetime": 12,
+    "category": "accessories",
+    "features": ["protection"],
+    "compatible_plans": [],
+    "stock": 300,
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&auto=format"
+  },
+  {
+    "id": "bundle_home_mobile",
+    "type": "bundle",
+    "name": "Home & Mobile Bundle XL",
+    "brand": "Telekom",
+    "description": "Combines a mobile plan with home fiber internet and MagentaTV for a discounted monthly price.",
+    "price_monthly": 55,
+    "price_onetime": 0,
+    "category": "bundles",
+    "features": ["fiber", "mobile", "tv", "smart_home"],
+    "compatible_plans": [],
+    "stock": 999,
+    "in_stock": true,
+    "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=400&fit=crop&auto=format"
   }
 ]

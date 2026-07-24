@@ -22,8 +22,13 @@ create table if not exists public.catalog_products (
     compatible_plans  jsonb not null default '[]'::jsonb,
     stock             integer not null default 0,
     in_stock          boolean not null default true,
+    image_url         text not null default '',
     updated_at        timestamptz not null default now()
 );
+
+-- Safe to re-run: if the table already exists from before image_url was added,
+-- this adds the column without touching existing rows/data.
+alter table public.catalog_products add column if not exists image_url text not null default '';
 
 -- POC: service key, no per-user auth -> RLS off (same note as the other schemas).
 alter table public.catalog_products disable row level security;
