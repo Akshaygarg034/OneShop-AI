@@ -14,4 +14,6 @@ router = APIRouter(tags=["chat"])
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
     session = store.get(req.session_id)
-    return run_pipeline(req.message, session)
+    response = run_pipeline(req.message, session)
+    store.save(session)  # P4: persist history + profile + cart (no-op for in-memory)
+    return response

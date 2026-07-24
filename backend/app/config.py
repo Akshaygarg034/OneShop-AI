@@ -33,6 +33,15 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "telekom_catalog")
 # Embeddings (P2) - Grok has no embeddings API, so use a local open model.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
+# Session persistence (P4).
+#   SESSION_BACKEND: auto | memory | supabase
+#     auto     -> Supabase if SUPABASE_URL+KEY are set, else in-memory.
+#     memory   -> always in-memory (POC default; wiped on restart).
+#     supabase -> require Supabase (still falls back to memory if unreachable).
+SESSION_BACKEND = os.getenv("SESSION_BACKEND", "auto")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")   # service_role key (POC: RLS disabled)
+
 # Path to the catalog file (P2 owns the data).
 CATALOG_PATH = os.getenv(
     "CATALOG_PATH",

@@ -1,11 +1,24 @@
 """
 Session store + cart. Owned by P4.
-In-memory for the POC (deliberate debt - would be Redis at scale).
 
 Holds, per session_id: conversation history, preference profile, cart.
 The SAME session_id is used by both OneShop (web) and OneApp (mobile view)
 -> that's how omnichannel continuity works.
+
+Persistence is pluggable (P4's "state continuity is a distributed problem" story):
+  - MemoryBackend   : in-memory dict. Zero config, the default. Dies on restart.
+  - SupabaseBackend : rows in Supabase Postgres. Survives restart AND lets a stateless
+                      service scale horizontally (the real omnichannel answer).
+
+Selection is driven by config (SESSION_BACKEND / SUPABASE_URL+KEY). If Supabase is
+requested but unreachable we log and fall back to memory, so the demo can never break.
+
+Heavy imports (the supabase client) live INSIDE the backend so mock mode needs nothing
+installed.
 """
+from __future__ import annotations
+
+from app.config import SESSION_BACKEND, SUPABASE_KEY, SUPABASE_URL
 from app.contracts.models import Cart, CartItem, PreferenceProfile, Product
 from app.retrieval.catalog import get_product
 
@@ -35,17 +48,125 @@ class Session:
         self.profile = PreferenceProfile()
         self.cart = Cart(session_id=session_id)
 
+    # --- serialization (for persistent backends) ---
+    def to_dict(self) -> dict:
+        return {
+            "session_id": self.session_id,
+            "history": self.history,
+            "profile": self.profile.model_dump(),
+            "cart": self.cart.model_dump(),
+        }
 
-class SessionStore:
+    @classmethod
+    def from_dict(cls, session_id: str, data: dict) -> "Session":
+        s = cls(session_id)
+        s.history = data.get("history") or []
+        s.profile = PreferenceProfile(**(data.get("profile") or {}))
+        cart_data = data.get("cart") or {"session_id": session_id}
+        cart_data.setdefault("session_id", session_id)
+        s.cart = Cart(**cart_data)
+        return s
+
+
+# --------------------------------------------------------------------------- #
+# Backends                                                                     #
+# --------------------------------------------------------------------------- #
+class MemoryBackend:
+    """In-memory sessions. Fast, zero config, wiped on restart (deliberate POC debt)."""
+    name = "memory"
+
     def __init__(self):
         self._sessions: dict[str, Session] = {}
 
-    def get(self, session_id: str) -> Session:
+    def get_session(self, session_id: str) -> Session:
         if session_id not in self._sessions:
             self._sessions[session_id] = Session(session_id)
         return self._sessions[session_id]
 
-    # --- cart operations ---
+    def save(self, session: Session) -> None:
+        # session is the live object already held in the dict -> nothing to do.
+        self._sessions[session.session_id] = session
+
+
+class SupabaseBackend:
+    """Sessions persisted as rows in Supabase Postgres.
+
+    Table (see supabase_schema.sql): sessions(session_id pk, history jsonb,
+    profile jsonb, cart jsonb, updated_at). Upsert on the primary key -> writes are
+    idempotent, so a retried cart-add can't double-charge. The service is stateless:
+    every request loads fresh from Postgres and saves back, which is exactly what lets
+    web + mobile share one session and lets the service scale horizontally.
+    """
+    name = "supabase"
+
+    def __init__(self, url: str, key: str, table: str = "sessions"):
+        from supabase import create_client  # heavy import, kept local
+        self._client = create_client(url, key)
+        self._table = table
+        # Fail fast so _make_backend can fall back to memory if creds/table are wrong.
+        self._client.table(self._table).select("session_id").limit(1).execute()
+
+    def get_session(self, session_id: str) -> Session:
+        try:
+            resp = (
+                self._client.table(self._table)
+                .select("*")
+                .eq("session_id", session_id)
+                .limit(1)
+                .execute()
+            )
+            if resp.data:
+                return Session.from_dict(session_id, resp.data[0])
+        except Exception as e:  # noqa - never let a read blip break a turn
+            print(f"[session] Supabase read failed for {session_id}: {e}")
+        return Session(session_id)
+
+    def save(self, session: Session) -> None:
+        try:
+            self._client.table(self._table).upsert(
+                session.to_dict(), on_conflict="session_id"
+            ).execute()
+        except Exception as e:  # noqa - a write blip must not crash the demo
+            print(f"[session] Supabase write failed for {session.session_id}: {e}")
+
+
+def _make_backend():
+    want = (SESSION_BACKEND or "auto").strip().lower()
+    use_supabase = want == "supabase" or (want == "auto" and SUPABASE_URL and SUPABASE_KEY)
+    if use_supabase:
+        if not (SUPABASE_URL and SUPABASE_KEY):
+            print("[session] SESSION_BACKEND=supabase but SUPABASE_URL/KEY missing; using memory.")
+            return MemoryBackend()
+        try:
+            backend = SupabaseBackend(SUPABASE_URL, SUPABASE_KEY)
+            print("[session] using Supabase persistence.")
+            return backend
+        except Exception as e:  # noqa - keep the demo bulletproof
+            print(f"[session] Supabase unavailable ({e}); falling back to in-memory.")
+            return MemoryBackend()
+    return MemoryBackend()
+
+
+# --------------------------------------------------------------------------- #
+# Store facade (unchanged public API: get / add_to_cart / remove / checkout)   #
+# --------------------------------------------------------------------------- #
+class SessionStore:
+    def __init__(self, backend=None):
+        self._backend = backend or _make_backend()
+
+    @property
+    def backend_name(self) -> str:
+        return getattr(self._backend, "name", "memory")
+
+    def get(self, session_id: str) -> Session:
+        return self._backend.get_session(session_id)
+
+    def save(self, session: Session) -> None:
+        """Persist a session after the pipeline mutates its history/profile/cart.
+        No-op for the memory backend; a Postgres upsert for Supabase."""
+        self._backend.save(session)
+
+    # --- cart operations (mutate, then persist) ---
     def add_to_cart(self, session_id: str, product_id: str, qty: int = 1) -> Cart:
         session = self.get(session_id)
         product = get_product(product_id)
@@ -63,12 +184,14 @@ class SessionStore:
                 billing=billing,
             ))
         self._recompute(session.cart)
+        self.save(session)
         return session.cart
 
     def remove_from_cart(self, session_id: str, product_id: str) -> Cart:
         session = self.get(session_id)
         session.cart.items = [i for i in session.cart.items if i.product_id != product_id]
         self._recompute(session.cart)
+        self.save(session)
         return session.cart
 
     def checkout(self, session_id: str) -> dict:
@@ -86,6 +209,7 @@ class SessionStore:
             "status": "confirmed",
         }
         session.cart = Cart(session_id=session_id)  # clear after order
+        self.save(session)
         return summary
 
     @staticmethod
