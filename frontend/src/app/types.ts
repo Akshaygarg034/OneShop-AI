@@ -1,5 +1,5 @@
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   category: string;
   price: number;
@@ -56,8 +56,21 @@ export interface PaymentDetails {
   cvc: string;
 }
 
-export interface SignupPayload {
-  name: string;
-  phone: string;
+export interface RegisterPayload {
   email: string;
+  password: string;
+  name?: string;
+  phone?: string;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  userId: string;
+  email: string;
+  name: string;
+  token: string;
 }
