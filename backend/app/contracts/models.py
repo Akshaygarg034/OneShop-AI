@@ -62,6 +62,7 @@ class Intent(BaseModel):
     priority_features: list[str] = Field(default_factory=list)
     product_types: list[str] = Field(default_factory=list)  # explicit type ask -> HARD filter
     is_shopping_related: bool = True
+    is_greeting: bool = False            # bare "hi"/"hello" - gets a welcome reply, not a search
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
     profile: PreferenceProfile = Field(default_factory=PreferenceProfile)

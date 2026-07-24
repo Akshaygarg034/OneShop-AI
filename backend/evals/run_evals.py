@@ -167,6 +167,22 @@ def t_decline_unrelated():
     assert "can’t help with that question" in r.reply_text, "expected a polite scope refusal"
 
 
+@case("CONVERSATION", "a bare greeting gets an engaging welcome, not a refusal")
+def t_greeting_welcome():
+    for msg in ("hi", "hello", "hey there", "good morning"):
+        r = _run(msg)
+        assert not r.recommendations, f"a greeting shouldn't return products ({msg!r})"
+        assert "can’t help with that question" not in r.reply_text, \
+            f"a bare greeting must not be treated as off-topic ({msg!r})"
+        assert r.reply_text.strip(), f"expected a welcome reply for {msg!r}"
+
+
+@case("CONVERSATION", "a greeting attached to a real request still searches normally")
+def t_greeting_with_request():
+    r = _run("hi, show me a phone with a good camera under 40 euros")
+    assert r.recommendations, "a real request prefixed with a greeting must still be answered"
+
+
 @case("CONVERSATION", "receipts are populated")
 def t_receipts():
     r = _run("phone with a camera")

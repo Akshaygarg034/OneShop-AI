@@ -89,6 +89,30 @@ def _is_shopping_related(message: str, history: list[dict]) -> bool:
     return not any(phrase in msg for phrase in _OFF_TOPIC_PHRASES)
 
 
+# A bare "hi"/"hello" gets a warm, engaging welcome instead of either the scope
+# refusal or a generic clarification question. Deterministic (not left to the
+# LLM) so it's never accidentally caught by the off-topic guardrail above -
+# greetings ARE on-topic, they're just the start of a shopping conversation.
+_GREETING_WORDS = {
+    "hi", "hii", "hiii", "hiya", "hello", "helo", "hey", "heya", "yo", "sup",
+    "howdy", "greetings", "morning", "afternoon", "evening",
+}
+_GREETING_FILLER = {"there", "good", "team", "everyone", "guys", "folks"}
+
+
+def _is_greeting(message: str) -> bool:
+    """True only when the ENTIRE message is a bare greeting/pleasantry (e.g.
+    "hi", "hello there", "good morning") with no shopping content of its own -
+    "hi, show me a phone" must still flow into the normal shopping pipeline,
+    only a standalone hello gets the special welcome reply."""
+    words = re.sub(r"[^\w\s]", " ", message.lower()).split()
+    if not words or len(words) > 4:
+        return False
+    has_greeting_word = any(w in _GREETING_WORDS for w in words)
+    all_recognized = all(w in _GREETING_WORDS or w in _GREETING_FILLER for w in words)
+    return has_greeting_word and all_recognized
+
+
 def _canonical_brand(raw: Optional[str]) -> Optional[str]:
     """Normalise a free-text brand ('iPhone', 'galaxy') to a catalog brand."""
     if not raw:
@@ -127,7 +151,11 @@ Telekom phone/plan/accessory shop. Fill the response schema with:
   product_types: subset of [phone, plan, accessory]
   is_shopping_related: false when the customer is asking about something outside
          shopping for Telekom phones, plans, bundles, or accessories. In that
-         case, do not extract a product preference.
+         case, do not extract a product preference. Greetings, thanks, and
+         small talk ARE shopping-related (they're just the start/end of a
+         shopping conversation) - only mark false for things like account
+         actions (cancel/delete), unrelated general-knowledge questions, or
+         complaints.
   clarification_needed: true ONLY if message is too vague to act on at all
   clarification_question: a single short question if clarification_needed, else null
 
@@ -156,12 +184,22 @@ every accessory.
 
 def extract_intent(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
     if MOCK_MODE:
-        return _extract_mock(message, history, profile)
-    try:
-        return _extract_real(message, history, profile)
-    except Exception as e:  # noqa - real extraction must never crash the pipeline
-        logger.warning("OpenAI intent extraction failed (%s); falling back to mock parsing.", e)
-        return _extract_mock(message, history, profile)
+        intent = _extract_mock(message, history, profile)
+    else:
+        try:
+            intent = _extract_real(message, history, profile)
+        except Exception as e:  # noqa - real extraction must never crash the pipeline
+            logger.warning("OpenAI intent extraction failed (%s); falling back to mock parsing.", e)
+            intent = _extract_mock(message, history, profile)
+
+    # Greeting detection is deterministic and applied uniformly (not left to
+    # either extraction path) so it can never be missed, and a bare "hi" can
+    # never trip the off-topic guardrail regardless of what the LLM decided.
+    if _is_greeting(message):
+        intent.is_greeting = True
+        intent.is_shopping_related = True
+        intent.clarification_needed = False
+    return intent
 
 
 def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:

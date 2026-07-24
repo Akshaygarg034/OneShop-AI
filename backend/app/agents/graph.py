@@ -11,14 +11,18 @@ functions stay the same - only the wiring changes.
 
 GUARDRAIL enforced here: recommendations may only reference eligible product ids.
 """
+import logging
 import uuid
 
 from app.agents.intent import extract_intent
 from app.agents.profile import update_profile
+from app.config import MOCK_MODE
 from app.contracts.models import ChatResponse, Receipts
 from app.engine.eligibility import filter_eligible
 from app.recommend.recommender import recommend
 from app.retrieval.retriever import retrieve
+
+logger = logging.getLogger(__name__)
 
 
 def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
@@ -31,6 +35,22 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     # multi-turn context survives restarts without bleeding across unrelated
     # conversation threads.
     intent = extract_intent(message, conv_history, session.profile)
+
+    # A bare "hi"/"hello" gets a warm, engaging welcome - not a search (there's
+    # nothing to search for yet) and not the scope refusal (a greeting is
+    # always on-topic - it's the start of a shopping conversation).
+    if intent.is_greeting:
+        reply = _greeting_reply()
+        conv_history.append({"role": "user", "content": message})
+        conv_history.append({"role": "assistant", "content": reply, "recommendations": []})
+        return ChatResponse(
+            reply_text=reply,
+            recommendations=[],
+            nba=[],
+            cart=session.cart,
+            receipts=Receipts(),
+            conversation_id=conversation_id,
+        )
 
     # Scope guard: this assistant only answers Telekom shopping questions. Do
     # not search the catalog (or fabricate a product answer) for unrelated asks.
@@ -117,6 +137,55 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
         receipts=receipts,
         conversation_id=conversation_id,
     )
+
+
+_GREETING_TEMPLATE = (
+    "Hey there, welcome to OneShop! I'm your personal shopping assistant — think "
+    "of me as your own Telekom sales advisor. I can help you find the right "
+    "phone, the best MagentaMobil plan, or accessories to go with it, all "
+    "matched to your budget and what matters to you (camera, gaming, EU travel "
+    "data, you name it). What are you in the market for today?"
+)
+
+_GREETING_SYSTEM_PROMPT = """You are an enthusiastic, friendly Telekom shopping \
+assistant greeting a customer who just said hello. Write ONE short, warm,
+engaging reply (2-3 sentences) like a great, personable salesperson: welcome
+them, briefly mention you help with phones, plans, and accessories, and invite
+them to share what they're looking for (budget, use case, or a specific
+product). Do NOT recommend a specific product yet - you don't know what they
+want. Output ONLY the reply text, no quotes, no preamble, no emoji."""
+
+
+def _greeting_reply() -> str:
+    if MOCK_MODE:
+        return _GREETING_TEMPLATE
+    try:
+        return _greeting_openai()
+    except Exception as e:  # noqa - a bad call must not break the greeting
+        logger.warning("OpenAI greeting generation failed (%s); using template.", e)
+        return _GREETING_TEMPLATE
+
+
+def _greeting_openai() -> str:
+    from openai import OpenAI
+
+    from app.config import OPENAI_API_KEY, OPENAI_MODEL
+
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY not set")
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    resp = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[{"role": "system", "content": _GREETING_SYSTEM_PROMPT}],
+        temperature=0.7,
+        max_tokens=100,
+        timeout=15,
+    )
+    text = (resp.choices[0].message.content or "").strip()
+    if not text:
+        raise RuntimeError("empty response from OpenAI")
+    return text
 
 
 def _compose_reply(recs, eligible, intent) -> str:
