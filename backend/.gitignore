@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Downloaded embedding models (sentence-transformers cache - do not commit)
+models/
+
 # C extensions
 *.so
 

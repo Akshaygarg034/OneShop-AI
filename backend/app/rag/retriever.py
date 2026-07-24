@@ -14,7 +14,7 @@ Manual test:  cd backend && python -m app.rag.retriever
 import logging
 from functools import lru_cache
 
-from app.config import EMBED_MODEL, QDRANT_COLLECTION, QDRANT_URL
+from app.config import EMBED_MODEL, MODEL_CACHE_DIR, QDRANT_COLLECTION, QDRANT_URL
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def _vector_store():
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
     client = QdrantClient(url=QDRANT_URL)
     return QdrantVectorStore(
         client=client,
