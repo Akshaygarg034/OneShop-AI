@@ -11,6 +11,7 @@ this module is cheap and the ~90 MB model only loads on first real search.
 
 Manual test:  cd backend && python -m app.rag.retriever
 """
+import os
 import logging
 from functools import lru_cache
 
@@ -19,16 +20,20 @@ from app.config import EMBED_MODEL, MODEL_CACHE_DIR, QDRANT_API_KEY, QDRANT_COLL
 logger = logging.getLogger(__name__)
 
 
+# @lru_cache(maxsize=1)
+# def _embeddings():
+#     """The ~90MB local embedding model. Cached separately from the Qdrant
+#     connection: lru_cache does NOT cache raised exceptions, so if it were bundled
+#     into _vector_store() below, a transient Qdrant hiccup would re-trigger a full
+#     model reload on every subsequent call, not just re-attempt the Qdrant part."""
+#     from langchain_huggingface import HuggingFaceEmbeddings
+
+#     return HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
+from langchain_openai import OpenAIEmbeddings
+
 @lru_cache(maxsize=1)
 def _embeddings():
-    """The ~90MB local embedding model. Cached separately from the Qdrant
-    connection: lru_cache does NOT cache raised exceptions, so if it were bundled
-    into _vector_store() below, a transient Qdrant hiccup would re-trigger a full
-    model reload on every subsequent call, not just re-attempt the Qdrant part."""
-    from langchain_huggingface import HuggingFaceEmbeddings
-
-    return HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
-
+    return OpenAIEmbeddings(model="text-embedding-3-small", dimensions=512, api_key=os.getenv("OPENAI_API_KEY"))
 
 @lru_cache(maxsize=1)
 def _vector_store():
@@ -54,7 +59,7 @@ def search(query: str, k: int = 8) -> list[dict]:
     hits = store.similarity_search_with_score(query, k=k)
     
     results = []
-    SIMILARITY_THRESHOLD = 0.6 
+    SIMILARITY_THRESHOLD = 0.25
     for doc, score in hits:
         if float(score) < SIMILARITY_THRESHOLD:
             continue
