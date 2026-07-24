@@ -12,7 +12,7 @@
     "compatible_plans": ["plan_m", "plan_l"],
     "stock": 12,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://media-ik.croma.com/Croma%20Assets/Communication/Mobiles/Images/309134_0_cv9vxa.png?tr=w-640"
   },
   {
     "id": "phone_s24",
@@ -57,7 +57,7 @@
     "compatible_plans": ["plan_s", "plan_m"],
     "stock": 30,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSdYVBNi_i2i9ujln2nDqXDJmHrvdt27Xj76SpR6RDeTsvgrcJWbK3VHDQ&s=10"
   },
   {
     "id": "plan_s",
@@ -72,7 +72,7 @@
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1580654712603-eb43273aff33?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjHVgsnVM44opQfI4S1dJSVPXxQoZtT2YQz24kQM6Af0ryrXACuy5tezJm&s=10"
   },
   {
     "id": "plan_m",
@@ -87,7 +87,7 @@
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSAjbxu_bBGFCmeRf1SwEVLs2kLiFEymiTWBo1ycc4_wg&s"
   },
   {
     "id": "plan_l",
@@ -102,7 +102,7 @@
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxGqLqChycoQxGx5_B8qyOD_sVV8pfxiu-fs9blkZzTA&s=10"
   },
   {
     "id": "accessory_case",
@@ -132,7 +132,7 @@
     "compatible_plans": [],
     "stock": 80,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQGkxOrXZDX2PDXGtohM4ysAouHdMynmQSaMwZuLAkZRw&s=10"
   },
   {
     "id": "accessory_charger",
@@ -192,7 +192,7 @@
     "compatible_plans": [],
     "stock": 999,
     "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1522199755839-a2bacb67c546?w=400&h=400&fit=crop&auto=format"
+    "image_url": "https://www.smartweb.de/public/resources/images/news/telekom/telekom-magenta-mobil-young-aktion.jpg"
   },
   {
     "id": "accessory_screen_protector",

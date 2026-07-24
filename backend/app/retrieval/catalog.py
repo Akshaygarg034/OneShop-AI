@@ -8,8 +8,7 @@ the RAG mock, and the eval suite keep working with zero infrastructure.
 
 Resolution order (first that yields products wins):
   1. Supabase `catalog_products` table (when SUPABASE_URL/KEY are set)
-  2. merge of data/products_postgres.json (prices/stock) + data/products_vector.json (semantic)
-  3. data/catalog.json (legacy single file)
+  2. data/catalog.json
 
 Heavy import (supabase client) stays inside the function so nothing is needed
 when running purely offline.
@@ -30,35 +29,14 @@ from app.contracts.models import Product
 
 logger = logging.getLogger(__name__)
 
-_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
-_POSTGRES_JSON = os.path.join(_DATA_DIR, "products_postgres.json")
-_VECTOR_JSON = os.path.join(_DATA_DIR, "products_vector.json")
-
-# Fields the deterministic engine/cart care about (authoritative, from Postgres).
-_PRICE_FIELDS = ("type", "category", "price_monthly", "price_onetime",
-                 "stock", "in_stock", "compatible_plans")
-# Fields that describe the product for humans + embeddings (semantic).
-_SEMANTIC_FIELDS = ("name", "brand", "description", "features", "image_url")
-
-
 def _read_json(path: str) -> list[dict]:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _merge_json_products() -> list[dict]:
-    """Join products_postgres.json (prices/stock) with products_vector.json
-    (name/brand/description/features) on `id` into full product dicts."""
-    priced = {p["id"]: p for p in _read_json(_POSTGRES_JSON)}
-    semantic = {p["id"]: p for p in _read_json(_VECTOR_JSON)}
-    merged: list[dict] = []
-    for pid, base in priced.items():
-        row = {"id": pid}
-        row.update({k: base[k] for k in _PRICE_FIELDS if k in base})
-        sem = semantic.get(pid, {})
-        row.update({k: sem[k] for k in _SEMANTIC_FIELDS if k in sem})
-        merged.append(row)
-    return merged
+    """Compatibility name for callers that now reads catalog.json directly."""
+    return _read_json(CATALOG_PATH)
 
 
 def _load_from_supabase() -> list[dict]:
@@ -118,11 +96,7 @@ def load_catalog() -> list[Product]:
     if backend in ("auto", "postgres"):
         rows = _load_from_supabase()
     if not rows:
-        # JSON fallbacks: prefer the split files, then the legacy single file.
-        try:
-            rows = _merge_json_products()
-        except FileNotFoundError:
-            rows = _read_json(CATALOG_PATH)
+        rows = _merge_json_products()
         logger.info("catalog: loaded %d products from JSON files.", len(rows))
 
     return [_to_product(r) for r in rows]

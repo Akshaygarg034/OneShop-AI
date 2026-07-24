@@ -40,16 +40,17 @@ python -m app.retrieval.seed_catalog      # load prices/stock into catalog_produ
 **2. Semantic retrieval (RAG) with Qdrant:**
 ```bash
 docker compose up -d qdrant               # from repo root
-python -m app.rag.ingestion               # embed data/products_vector.json -> Qdrant
+python -m app.rag.ingestion               # embed data/catalog.json -> Qdrant (without image URLs)
 # set RAG_ENABLED=true in .env    (retrieve() now does vector search)
 python -m app.rag.retriever               # optional: manual search REPL
 ```
 
 **3. Grok generation (P1/P3):** set `XAI_API_KEY` and flip `MOCK_MODE=false`.
 
-### Data split (prices in Postgres, meaning in the vector DB)
-- `data/products_postgres.json` → seeds `catalog_products` (id, prices, stock, compatibility).
-- `data/products_vector.json`   → embedded into Qdrant (description + features).
+### Catalog sync (catalog.json is the source of truth)
+- `data/catalog.json` → upserted into `catalog_products` (including image URLs).
+- The same file is embedded into Qdrant with `image_url` removed.
+- Run `python update_catalog.py` after editing the catalog.
 - Retrieval finds candidate ids by meaning in Qdrant, then reads authoritative
   prices/stock from Postgres — "AI generates, deterministic rules decide."
 
@@ -66,9 +67,7 @@ app/
   auth/                 - user accounts (Supabase users table) + tokens
   api/                  - chat.py, cart.py, catalog.py, auth.py
 data/
-  products_postgres.json  - prices/stock (seeds catalog_products)
-  products_vector.json    - semantic text (embedded into Qdrant)
-  catalog.json            - legacy single-file fallback
+  catalog.json            - single source for Postgres + Qdrant sync
 evals/run_evals.py      - proof harness (offline; some cases skip if Qdrant is down)
 ```
 
