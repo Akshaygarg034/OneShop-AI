@@ -9,6 +9,9 @@ authoritative Product.
 
 Run:  cd backend && python -m app.rag.ingestion
 
+The default input is data/catalog.json. image_url is excluded before vectors
+and metadata are created.
+
 Heavy imports are kept inside functions so importing this module (e.g. for tests)
 never requires the ML stack.
 """
@@ -17,12 +20,18 @@ import logging
 import os
 from uuid import uuid4
 
-from app.config import EMBED_MODEL, MODEL_CACHE_DIR, QDRANT_COLLECTION, QDRANT_URL
+from app.config import (
+    EMBED_MODEL,
+    MODEL_CACHE_DIR,
+    QDRANT_API_KEY,
+    QDRANT_COLLECTION,
+    QDRANT_URL,
+)
 
 logger = logging.getLogger(__name__)
 
 _EMBED_DIM = 384  # all-MiniLM-L6-v2 output size
-_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "products_vector.json")
+_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "catalog.json")
 
 
 def _build_document(product: dict):
@@ -56,12 +65,17 @@ def ingest(data_file: str = _DATA_FILE, recreate: bool = True) -> int:
     from qdrant_client.http.models import Distance, VectorParams
 
     with open(data_file, "r", encoding="utf-8") as f:
-        products = json.load(f)
+        # image_url is frontend display data. Never include it in a vector
+        # document or Qdrant payload, even when catalog.json is the source.
+        products = [
+            {key: value for key, value in product.items() if key != "image_url"}
+            for product in json.load(f)
+        ]
     documents = [_build_document(p) for p in products]
     logger.info("Embedding %d products with %s...", len(documents), EMBED_MODEL)
 
     embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
-    client = QdrantClient(url=QDRANT_URL)
+    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
 
     if recreate and client.collection_exists(QDRANT_COLLECTION):
         client.delete_collection(QDRANT_COLLECTION)
