@@ -41,7 +41,6 @@ def _vector_store():
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
     return QdrantVectorStore(
         client=client,
