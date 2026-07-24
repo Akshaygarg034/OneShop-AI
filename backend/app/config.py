@@ -40,7 +40,7 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Qdrant (P2)
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "product_embeddings")
+QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "telekom_catalog")
 
 # Embeddings (P2) - OpenAI has no affordable embeddings for local RAG, so use a local open model.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
