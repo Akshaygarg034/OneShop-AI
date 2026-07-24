@@ -40,15 +40,16 @@ class SkipCase(Exception):
 
 def _run(message: str):
     """One-shot: fresh session, single message."""
-    return run_pipeline(message, Session("eval"), "eval-thread")
+    return run_pipeline(message, Session("eval"), uuid.uuid4().hex)
 
 
 def _conversation():
     """Multi-turn: one persistent session + thread, returns a say() that advances it."""
     session = Session("eval-convo")
+    conversation_id = uuid.uuid4().hex
 
     def say(message: str):
-        return run_pipeline(message, session, "eval-convo-thread")
+        return run_pipeline(message, session, conversation_id)
 
     return session, say
 
@@ -174,6 +175,21 @@ def t_receipts():
         "receipts.shown_ids must match what was actually shown"
 
 
+@case("CONVERSATION", "assistant nudges are stored in history so follow-ups have a referent")
+def t_nudge_in_history():
+    # A phone recommendation emits an NBA nudge ("Add a protective case..."). That
+    # nudge must be persisted into the conversation turn, otherwise a later "yes"
+    # has nothing to refer to and the bot just repeats itself.
+    session = Session("eval-nudge")
+    r = run_pipeline("a phone with a good camera under 40 euros", session, "t")
+    assert r.nba, "expected at least one nudge for a phone recommendation"
+    turns = session.get_conversation("t")
+    last_assistant = turns[-1]
+    assert last_assistant["role"] == "assistant"
+    assert r.nba[0] in last_assistant["content"], \
+        "the nudge shown to the user was not saved into history"
+
+
 # --------------------------------------------------------------------------- #
 # PERSONALIZATION - ranking adapts to the profile                             #
 # --------------------------------------------------------------------------- #
@@ -190,6 +206,17 @@ def t_personalize():
     assert after.recommendations, "expected recommendations after the rejection"
     top_brand = _brand(after.recommendations[0].product_id)
     assert top_brand != "Samsung", f"top pick is still Samsung after rejecting it ({top_brand})"
+
+
+@case("PERSONALIZATION", "profile learns brand affinity and persists on the session")
+def t_profile_learns():
+    session, say = _conversation()
+    say("show me a Samsung phone")
+    assert "Samsung" in session.profile.brands_viewed, "brand affinity was not learned"
+    say("I take a lot of photos")
+    assert "camera" in session.profile.features_mentioned, "feature interest was not learned"
+    # The profile lives on the session, so it persists (Supabase) per user_id after login.
+    assert session.profile is not None
 
 
 # --------------------------------------------------------------------------- #

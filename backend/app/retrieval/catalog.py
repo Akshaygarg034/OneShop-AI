@@ -29,6 +29,17 @@ from app.contracts.models import Product
 
 logger = logging.getLogger(__name__)
 
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+_POSTGRES_JSON = os.path.join(_DATA_DIR, "products_postgres.json")
+_VECTOR_JSON = os.path.join(_DATA_DIR, "products_vector.json")
+
+# Fields the deterministic engine/cart care about (authoritative, from Postgres).
+_PRICE_FIELDS = ("type", "category", "price_monthly", "price_onetime",
+                 "stock", "in_stock", "compatible_plans")
+# Fields that describe the product for humans + embeddings (semantic).
+_SEMANTIC_FIELDS = ("name", "brand", "description", "features", "image_url", "popularity")
+
+
 def _read_json(path: str) -> list[dict]:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -85,6 +96,7 @@ def _to_product(row: dict) -> Product:
         stock=int(row.get("stock") or 0),
         in_stock=bool(row.get("in_stock", True)),
         image_url=row.get("image_url", ""),
+        popularity=float(row.get("popularity") if row.get("popularity") is not None else 0.5),
     )
 
 

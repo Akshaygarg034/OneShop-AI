@@ -70,7 +70,15 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     # 2. Find candidates (P2)
     candidates = retrieve(intent)
 
-    # 3. Filter to what's actually offerable - SOURCE OF TRUTH (P2)
+    # 3. Filter to what's actually offerable - SOURCE OF TRUTH (P2). This is
+    # also where a HARD scope to what THIS turn explicitly asked for happens
+    # (brand_mismatch / wrong_type in eligibility.py) - without it, a
+    # session-wide learned preference (e.g. "camera" from an earlier phone
+    # question) keeps outscoring the very plans/accessories being asked about
+    # right now, since rank_products()'s `preference` signal reads the whole
+    # accumulated profile, not just this message. A budget or feature
+    # mentioned earlier should keep biasing ranking WITHIN a category; it
+    # should never hijack the category itself.
     evaluated = filter_eligible(candidates, intent)
     eligible = [e for e in evaluated if e.eligible]
 
@@ -90,10 +98,14 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     )
 
     # Record turn; persist recommendations so the frontend can restore product cards from history.
+    # IMPORTANT: store the nudges (nba) as part of the assistant content too. They're
+    # shown to the user, so a follow-up like "yes" refers to them - if we only stored
+    # `reply`, the next turn's intent extraction couldn't resolve what "yes" meant.
+    assistant_content = reply + (("\n\n" + "\n".join(nba)) if nba else "")
     conv_history.append({"role": "user", "content": message})
     conv_history.append({
         "role": "assistant",
-        "content": reply,
+        "content": assistant_content,
         "recommendations": [r.model_dump() for r in recs],
     })
 

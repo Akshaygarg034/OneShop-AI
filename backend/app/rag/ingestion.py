@@ -30,7 +30,8 @@ from app.config import (
 
 logger = logging.getLogger(__name__)
 
-_EMBED_DIM = 384  # all-MiniLM-L6-v2 output size
+# _EMBED_DIM = 384  # all-MiniLM-L6-v2 output size
+_EMBED_DIM = 256
 _DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "catalog.json")
 
 
@@ -59,7 +60,7 @@ def _build_document(product: dict):
 def ingest(data_file: str = _DATA_FILE, recreate: bool = True) -> int:
     """(Re)build the Qdrant collection from the semantic catalog file.
     Returns the number of vectors stored."""
-    from langchain_huggingface import HuggingFaceEmbeddings
+    # from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
     from qdrant_client.http.models import Distance, VectorParams
@@ -74,7 +75,9 @@ def ingest(data_file: str = _DATA_FILE, recreate: bool = True) -> int:
     documents = [_build_document(p) for p in products]
     logger.info("Embedding %d products with %s...", len(documents), EMBED_MODEL)
 
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
+    # embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
+    from langchain_openai import OpenAIEmbeddings
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", dimensions=_EMBED_DIM, api_key=os.getenv("OPENAI_API_KEY"))
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
 
     if recreate and client.collection_exists(QDRANT_COLLECTION):

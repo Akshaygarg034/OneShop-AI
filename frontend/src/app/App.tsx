@@ -4,6 +4,7 @@ import { Discovery } from "./components/views/Discovery";
 import { SmartCart } from "./components/views/SmartCart";
 import { SiteFooter } from "./components/SiteFooter";
 import { FloatingChat } from "./components/FloatingChat";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { AuthProvider } from "./auth/AuthContext";
 import { CartProvider } from "./cart/CartContext";
@@ -33,16 +34,20 @@ export default function App() {
             </div>
 
             <main style={{ flex: 1 }}>
-              {view === "discovery" && (
-                <Discovery category={category} onCategoryChange={setCategory} searchQuery={searchQuery} />
-              )}
-              {view === "cart" && (
-                <SmartCart onContinueShopping={() => setView("discovery")} />
-              )}
+              <ErrorBoundary label={view === "cart" ? "cart" : "product catalog"} key={view}>
+                {view === "discovery" && (
+                  <Discovery category={category} onCategoryChange={setCategory} searchQuery={searchQuery} />
+                )}
+                {view === "cart" && (
+                  <SmartCart onContinueShopping={() => setView("discovery")} />
+                )}
+              </ErrorBoundary>
             </main>
 
             <SiteFooter />
-            <FloatingChat />
+            <ErrorBoundary label="chat assistant">
+              <FloatingChat />
+            </ErrorBoundary>
           </div>
 
           <style>{`

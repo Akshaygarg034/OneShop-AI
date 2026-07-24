@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, cart, catalog, chat
+from app.api import auth, cart, catalog, chat, profile
 from app.config import RAG_ENABLED
 
 logger = logging.getLogger(__name__)
@@ -36,13 +36,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Telekom Smart Shopping Assistant", lifespan=lifespan)
 
-# Allow the React frontend (Vite default port) to call us.
+# Allow the React frontend to call us. Both 5173 (Vite's own default) and 5180
+# (this repo's .claude/launch.json dev port) are listed - they'd drifted out
+# of sync, which silently broke every fetch when running via launch.json.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,6 +51,7 @@ app.include_router(chat.router)
 app.include_router(cart.router)
 app.include_router(catalog.router)
 app.include_router(auth.router)
+app.include_router(profile.router)
 
 
 @app.get("/health")

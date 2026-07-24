@@ -27,6 +27,12 @@ interface BackendProduct {
   stock: number;
   in_stock: boolean;
   image_url: string;
+  // Present when fetched from GET /catalog (RankedProduct) - this session's live
+  // ranking from the same recommend.rank_products() engine the chat uses.
+  confidence?: number;
+  signals?: Record<string, number>;
+  personalization_basis?: "cold_start" | "personalized";
+  why?: string;
 }
 
 interface BackendRecommendation {
@@ -35,6 +41,9 @@ interface BackendRecommendation {
   score: number;
   why: string;
   bundle: string[];
+  confidence: number;
+  signals: Record<string, number>;
+  personalization_basis: "cold_start" | "personalized";
 }
 
 interface BackendChatResponse {
@@ -53,7 +62,10 @@ interface BackendCheckoutResult {
 }
 
 async function fetchRawCatalog(): Promise<BackendProduct[]> {
-  const res = await fetch(`${BASE}/catalog`);
+  // session_id personalizes the ranking (confidence/signals/why) against this
+  // user's learned PreferenceProfile; the backend still returns every product
+  // (ineligible ones just rank lower) so browse behaviour is unchanged.
+  const res = await fetch(`${BASE}/catalog?session_id=${getSessionId()}`);
   if (!res.ok) throw new Error("Could not load the catalog. Please try again.");
   return res.json();
 }
@@ -73,22 +85,26 @@ function clampScore(n: number): number {
   return Math.max(0, Math.min(99, Math.round(n)));
 }
 
-/** A disclosed, deterministic heuristic for the plain catalog browse (no
- * personalization context there - it's a flat GET /catalog, not a
- * recommendation). More real features + being in stock nudges it up. This is
- * NOT a fabricated trust signal: it's a transparent function of real fields. */
-function heuristicScore(p: BackendProduct): number {
-  return clampScore(55 + p.features.length * 6 + (p.in_stock ? 10 : 0));
+/** Adapt a real catalog product into the UI's display shape. `confidence`,
+ * `signals`, and `why` come straight from the backend's recommend.rank_products()
+ * engine - the same one that ranks chat's top-3 picks - so the browse grid and
+ * the "Why this?" panel are showing real numbers, never a fabricated model
+ * name or invented score. Star ratings/review counts have no real data source
+ * anywhere in this system, so they're honestly 0 rather than fabricated social proof. */
+interface RecommendationOverride {
+  score: number;
+  why: string;
+  signals: Record<string, number>;
+  personalization_basis: "cold_start" | "personalized";
 }
 
-/** Adapt a real catalog product into the UI's display shape. When `why`/`score`
- * come from an actual /chat recommendation, they're the genuine grounded
- * explanation and ranking score - not invented. Star ratings/review counts have
- * no real data source anywhere in this system, so they're honestly 0 rather
- * than fabricated social proof. */
-function adaptProduct(p: BackendProduct, score?: number, why?: string): Product {
+function adaptProduct(p: BackendProduct, override?: RecommendationOverride): Product {
   const price = p.price_onetime > 0 ? p.price_onetime : p.price_monthly;
   const monthlyPrice = p.price_onetime > 0 ? p.price_monthly : 0;
+  const why = override?.why ?? p.why;
+  const signals = override?.signals ?? p.signals;
+  const basis = override?.personalization_basis ?? p.personalization_basis;
+  const isAiPick = !!override || p.personalization_basis === "personalized";
 
   const reasons = why
     ? [why]
@@ -105,15 +121,17 @@ function adaptProduct(p: BackendProduct, score?: number, why?: string): Product 
     price,
     monthlyPrice,
     image: p.image_url || placeholderImage(p.name),
-    badge: !p.in_stock ? "Out of Stock" : why ? "AI Pick" : "In Stock",
-    badgeColor: !p.in_stock ? "#FF3B30" : why ? "var(--primary)" : "#00C2A8",
-    aiScore: score !== undefined ? clampScore(score) : heuristicScore(p),
+    badge: !p.in_stock ? "Out of Stock" : isAiPick ? "AI Pick" : "In Stock",
+    badgeColor: !p.in_stock ? "#FF3B30" : isAiPick ? "var(--primary)" : "#00C2A8",
+    aiScore: clampScore(override?.score ?? p.confidence ?? 50),
     stars: 0,     // no review data exists yet - honest zero, not a fabricated rating
     reviews: 0,
     tags: p.features.map(titleCase),
     reasons,
     inStock: p.in_stock,
     trend: p.in_stock ? `${p.stock} in stock` : "Currently unavailable",
+    signals,
+    personalizationBasis: basis,
   };
 }
 
@@ -171,7 +189,14 @@ export async function askAssistant(message: string, conversationId: string): Pro
       .map((rec) => {
         const raw = byId.get(rec.product_id);
         // The backend's guardrail already forbids this, but stay defensive.
-        return raw ? adaptProduct(raw, rec.score * 10, rec.why) : null;
+        return raw
+          ? adaptProduct(raw, {
+              score: rec.confidence,
+              why: rec.why,
+              signals: rec.signals,
+              personalization_basis: rec.personalization_basis,
+            })
+          : null;
       })
       .filter((p): p is Product => p !== null);
   }
@@ -198,7 +223,14 @@ export async function resolveHistoryProducts(
     const products = msg.recommendations
       .map((rec) => {
         const raw = byId.get(rec.product_id);
-        return raw ? adaptProduct(raw, rec.score * 10, rec.why) : null;
+        return raw
+          ? adaptProduct(raw, {
+              score: rec.confidence,
+              why: rec.why,
+              signals: rec.signals,
+              personalization_basis: rec.personalization_basis,
+            })
+          : null;
       })
       .filter((p): p is Product => p !== null);
     if (products.length) result.set(i, products);

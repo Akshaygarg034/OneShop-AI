@@ -85,45 +85,18 @@ Telekom phone/plan/accessory shop. Fill the response schema with:
 Rules:
 - clarification_needed=true only if no budget, no brand, no feature, no product type, fewer than ~6 words.
 - Set brand ONLY when the customer explicitly names one; never guess a brand from features.
+- brand applies to PHONES only. If the request is for an accessory, plan or bundle
+  (including a follow-up like "yes, add a case"), leave brand null - don't carry a
+  phone brand from an earlier turn onto it.
 - Never invent features/types not implied by the message.
-- General knowledge, entertainment, homework, weather, coding, and other
-  unrelated requests are not shopping-related.
+
+FOLLOW-UPS: the latest message may be a short reply to YOUR previous turn
+(e.g. "yes", "sure", "the first one", "show me those", "cheaper"). Use the
+conversation history to resolve it into a concrete intent. If your last turn
+offered to show accessories/plans/a bundle and the user agrees, set the matching
+product_types (e.g. ["accessory"]) and a clear use_case - do NOT ask for
+clarification, and do NOT repeat the previous intent unchanged.
 """
-
-_SHOPPING_WORDS = {
-    "accessories", "accessory", "apple", "budget", "buy", "camera", "case",
-    "charger", "data plan", "earbuds", "galaxy", "google", "iphone", "magenta",
-    "gaming", "phone", "pixel", "plan", "price", "roaming", "samsung", "sim",
-    "smartphone", "streaming", "tariff", "telekom", "travel", "unlimited", "5g",
-}
-_NON_SHOPPING_PATTERNS = (
-    r"\b(tell|make|write)\b.*\b(joke|poem|story|recipe)\b",
-    r"\b(weather|forecast|capital of|president|homework|math problem|python code)\b",
-    r"\bwho (is|was|invented)\b",
-)
-
-
-def _is_shopping_related(message: str, history: list[dict]) -> bool:
-    """Keep unrelated requests out of the product retrieval pipeline.
-
-    A short follow-up such as "under 30" is accepted only when this conversation
-    already contains a shopping request. Explicitly unrelated questions always
-    remain out of scope, even in a shopping conversation.
-    """
-    msg = message.lower()
-    if any(re.search(pattern, msg) for pattern in _NON_SHOPPING_PATTERNS):
-        return False
-    if any(word in msg for word in _SHOPPING_WORDS):
-        return True
-    # Keep genuinely vague messages in the existing clarification flow instead
-    # of treating them as an unrelated question.
-    if len(msg.split()) <= 3:
-        return True
-    has_shopping_context = any(
-        turn.get("role") == "user" and any(word in turn.get("content", "").lower() for word in _SHOPPING_WORDS)
-        for turn in history
-    )
-    return has_shopping_context and bool(re.search(r"\b(under|below|max|cheaper|more|less|that|this|it|one)\b|\d", msg))
 
 
 def extract_intent(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:

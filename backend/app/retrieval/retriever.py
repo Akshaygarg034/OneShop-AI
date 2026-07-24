@@ -15,7 +15,7 @@ Heavy imports stay inside app/rag so mock mode needs nothing installed.
 """
 import logging
 
-from app.config import RAG_ENABLED
+from app.config import RAG_ENABLED, QDRANT_API_KEY
 from app.contracts.models import Intent, Product
 from app.retrieval.catalog import get_product, load_catalog
 
