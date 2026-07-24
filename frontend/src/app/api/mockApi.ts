@@ -294,6 +294,25 @@ export async function fetchChatHistory(conversationId?: string): Promise<{
   return { conversationId: data.conversation_id ?? "", history: data.history ?? [] };
 }
 
+export interface ChatHistoryMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  recommendations: BackendRecommendation[];
+}
+
+// Persisted conversation for the current session/user. Sends the auth token so
+// the backend authorizes reads of a logged-in account's private history.
+export async function getChatHistory(conversationId = ""): Promise<ChatHistoryMessage[]> {
+  const token = getAuthToken();
+  const q = conversationId ? `&conversation_id=${encodeURIComponent(conversationId)}` : "";
+  const res = await fetch(`${BASE}/chat/history?session_id=${getSessionId()}${q}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.history || [];
+}
+
 // Restores the logged-in user on page load from a stored token, if any.
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const token = getAuthToken();
