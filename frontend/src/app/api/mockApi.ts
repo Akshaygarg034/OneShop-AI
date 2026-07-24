@@ -41,6 +41,7 @@ interface BackendChatResponse {
   reply_text: string;
   recommendations: BackendRecommendation[];
   nba: string[];
+  conversation_id: string;
 }
 
 interface BackendCheckoutResult {
@@ -141,16 +142,23 @@ export async function getLiveActivity(productId: string): Promise<LiveActivity> 
   return { viewers: 0, stockLeft: p.stock };
 }
 
+export interface HistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+  recommendations: BackendRecommendation[];
+}
+
 interface AssistantReply {
   reply: string;
   products?: Product[];
+  conversationId: string;
 }
 
-export async function askAssistant(message: string): Promise<AssistantReply> {
+export async function askAssistant(message: string, conversationId: string): Promise<AssistantReply> {
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: getSessionId(), message }),
+    body: JSON.stringify({ session_id: getSessionId(), message, conversation_id: conversationId || undefined }),
   });
   if (!res.ok) throw new Error("Sorry, I couldn't reach the recommendation service. Please try again.");
   const data: BackendChatResponse = await res.json();
@@ -170,7 +178,33 @@ export async function askAssistant(message: string): Promise<AssistantReply> {
 
   // Surface next-best-action nudges in the same reply bubble (no new UI element).
   const reply = data.nba.length ? `${data.reply_text}\n\n${data.nba.join("\n")}` : data.reply_text;
-  return { reply, products };
+  return { reply, products, conversationId: data.conversation_id };
+}
+
+/** Restore product cards for all assistant messages in a history list.
+ *  Fetches the catalog once and resolves all recommendations in one pass. */
+export async function resolveHistoryProducts(
+  history: HistoryMessage[],
+): Promise<Map<number, Product[]>> {
+  const hasAnyRecs = history.some((m) => m.role === "assistant" && m.recommendations?.length > 0);
+  if (!hasAnyRecs) return new Map();
+
+  const catalog = await fetchRawCatalog();
+  const byId = new Map(catalog.map((p) => [p.id, p]));
+  const result = new Map<number, Product[]>();
+
+  history.forEach((msg, i) => {
+    if (msg.role !== "assistant" || !msg.recommendations?.length) return;
+    const products = msg.recommendations
+      .map((rec) => {
+        const raw = byId.get(rec.product_id);
+        return raw ? adaptProduct(raw, rec.score * 10, rec.why) : null;
+      })
+      .filter((p): p is Product => p !== null);
+    if (products.length) result.set(i, products);
+  });
+
+  return result;
 }
 
 export interface OrderResult {
@@ -239,6 +273,25 @@ export function logoutUser(): void {
   // Reset to a fresh guest session so the logged-out user's cart is not visible
   // to whoever opens the browser next. Re-login will restore their server-side cart.
   clearSessionId();
+}
+
+export async function fetchConversations(): Promise<string[]> {
+  const res = await fetch(`${BASE}/chat/conversations?session_id=${getSessionId()}`);
+  if (!res.ok) return [];
+  const data: { session_id: string; conversation_ids: string[] } = await res.json();
+  return data.conversation_ids ?? [];
+}
+
+export async function fetchChatHistory(conversationId?: string): Promise<{
+  conversationId: string;
+  history: HistoryMessage[];
+}> {
+  const params = new URLSearchParams({ session_id: getSessionId() });
+  if (conversationId) params.set("conversation_id", conversationId);
+  const res = await fetch(`${BASE}/chat/history?${params}`);
+  if (!res.ok) return { conversationId: conversationId ?? "", history: [] };
+  const data: { conversation_id: string; history: HistoryMessage[] } = await res.json();
+  return { conversationId: data.conversation_id ?? "", history: data.history ?? [] };
 }
 
 // Restores the logged-in user on page load from a stored token, if any.

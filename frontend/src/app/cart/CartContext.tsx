@@ -24,6 +24,12 @@ interface BackendCartSummary {
   monthly_total: number;
 }
 
+interface BackendCartResponse {
+  items: BackendCartItem[];
+  subtotal: number;
+  monthly_total: number;
+}
+
 interface CartContextValue {
   items: CartLineItem[];
   count: number;
@@ -61,17 +67,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [subtotal, setSubtotal] = useState(0);
   const [monthlyTotal, setMonthlyTotal] = useState(0);
   const catalogRef = useRef<Map<string, Product>>(new Map());
+  const refreshSeq = useRef(0);
 
-  const refresh = async () => {
-    const res = await fetch(`${BASE}/cart/summary?session_id=${getSessionId()}`);
-    if (!res.ok) return;
-    const data: BackendCartSummary = await res.json();
+  const applyCart = (data: BackendCartResponse | BackendCartSummary) => {
     setItems(data.items.map((i) => ({
       product: catalogRef.current.get(i.product_id) ?? placeholderProduct(i),
       qty: i.qty,
+      billing: i.billing,
     })));
-    setSubtotal(data.onetime_total);
+    setSubtotal("onetime_total" in data ? data.onetime_total : data.subtotal);
     setMonthlyTotal(data.monthly_total);
+  };
+
+  const refresh = async () => {
+    const seq = ++refreshSeq.current;
+    const res = await fetch(`${BASE}/cart/summary?session_id=${getSessionId()}`);
+    if (!res.ok || seq !== refreshSeq.current) return;
+    const data: BackendCartSummary = await res.json();
+    if (seq !== refreshSeq.current) return;
+    applyCart(data);
   };
 
   useEffect(() => {
@@ -90,17 +104,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const mutateCart = (path: string, body: Record<string, unknown>) =>
+    postCart(path, body).then(async (res) => {
+      if (!res.ok) return;
+      // Apply the cart returned by the mutation directly — don't re-fetch
+      // /cart/summary, which can briefly return stale data from Supabase and
+      // make totals look unchanged after a bundle-suggestion add.
+      const data: BackendCartResponse = await res.json();
+      applyCart(data);
+    });
+
   const addItem = (product: Product, qty = 1) => {
     catalogRef.current.set(product.id, product);
-    postCart("/cart/add", { product_id: product.id, qty }).then(refresh);
+    mutateCart("/cart/add", { product_id: product.id, qty });
   };
 
   const removeItem = (productId: string) => {
-    postCart("/cart/remove", { product_id: productId }).then(refresh);
+    mutateCart("/cart/remove", { product_id: productId });
   };
 
   const updateQty = (productId: string, qty: number) => {
-    postCart("/cart/set", { product_id: productId, qty }).then(refresh);
+    mutateCart("/cart/set", { product_id: productId, qty });
   };
 
   const clearCart = () => {

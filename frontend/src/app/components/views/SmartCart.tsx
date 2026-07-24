@@ -4,9 +4,11 @@ import {
   Check, Package, Shield, Truck, Minus, Plus, CheckCircle2,
 } from "lucide-react";
 import { useCart } from "../../cart/CartContext";
+import { useAuth } from "../../auth/AuthContext";
 import { getBundleSuggestions, getLiveActivity, createOrder } from "../../api/mockApi";
 import type { OrderResult } from "../../api/mockApi";
 import { formatEUR } from "../../lib/format";
+import { AuthModal } from "../AuthModal";
 import type { Product, ShippingDetails, PaymentDetails } from "../../types";
 
 const steps = ["Cart", "Details", "Payment", "Confirm"];
@@ -24,7 +26,9 @@ interface SmartCartProps {
 
 export function SmartCart({ onContinueShopping }: SmartCartProps) {
   const { items, subtotal, monthlyTotal, updateQty, removeItem, addItem, isInCart, clearCart } = useCart();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
+  const [authOpen, setAuthOpen] = useState(false);
   const [bundles, setBundles] = useState<Product[]>([]);
   const [bundlesLoading, setBundlesLoading] = useState(true);
   const [liveActivity, setLiveActivity] = useState<{ viewers: number; stockLeft: number } | null>(null);
@@ -62,8 +66,14 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
   }, [step, items.length]);
 
   const bundleDiscountRate = items.length >= 2 ? 0.05 : 0;
+  // Discount only applies to one-time goods (accessories, upfront device cost)
   const bundleDiscount = subtotal * bundleDiscountRate;
-  const total = subtotal - bundleDiscount;
+  const onetimeTotal = subtotal - bundleDiscount;
+  const total = onetimeTotal; // kept for legacy confirm-step usage
+  const onetimeItemCount = useMemo(
+    () => items.filter((i) => i.billing === "onetime").reduce((sum, i) => sum + i.qty, 0),
+    [items],
+  );
 
   const validateShipping = () => {
     const e: Record<string, string> = {};
@@ -89,6 +99,8 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
   const handleContinue = () => {
     if (step === 0) {
       if (items.length === 0) return;
+      // Guests can add to cart; checkout requires an account.
+      if (!user) { setAuthOpen(true); return; }
       setStep(1);
     } else if (step === 1) {
       if (validateShipping()) setStep(2);
@@ -179,7 +191,9 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 32px", color: "var(--foreground)" }}>
+    <>
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 32px", color: "var(--foreground)" }}>
       {/* Live reservation banner */}
       {step === 0 && firstItem && liveActivity && (
         <div
@@ -270,7 +284,7 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                   <span style={{ fontSize: 14, fontWeight: 600 }}>Cart ({items.length} items)</span>
                 </div>
                 <div className="divide-y" style={{ borderColor: "rgba(var(--border-rgb),0.07)" }}>
-                  {items.map(({ product, qty }) => (
+                  {items.map(({ product, qty, billing }) => (
                     <div key={product.id} style={{ padding: "16px 20px", display: "flex", gap: 14 }}>
                       <img src={product.image} alt={product.name} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
@@ -293,13 +307,15 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{formatEUR(product.price * qty)}</p>
-                        {product.monthlyPrice > 0 && (
-                          <p style={{ fontSize: 10, color: "var(--muted-foreground)", marginBottom: 10 }}>{formatEUR(product.monthlyPrice * qty)}/mo</p>
-                        )}
+                        <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>
+                          {formatEUR(product.price * qty)}
+                          {billing === "monthly" && (
+                            <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>/mo</span>
+                          )}
+                        </p>
                         <button
                           onClick={() => removeItem(product.id)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", marginTop: 8 }}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -425,10 +441,15 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                 </div>
                 <div>
                   <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 8 }}>ITEMS</p>
-                  {items.map(({ product, qty }) => (
+                  {items.map(({ product, qty, billing }) => (
                     <div key={product.id} className="flex justify-between" style={{ marginBottom: 4 }}>
                       <span style={{ fontSize: 12 }}>{product.name} × {qty}</span>
-                      <span style={{ fontSize: 12 }}>{formatEUR(product.price * qty)}</span>
+                      <span style={{ fontSize: 12 }}>
+                        {formatEUR(product.price * qty)}
+                        {billing === "monthly" && (
+                          <span style={{ color: "var(--muted-foreground)" }}>/mo</span>
+                        )}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -451,10 +472,26 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
           <div style={{ background: "var(--card)", border: "1px solid rgba(var(--border-rgb),0.07)", borderRadius: 20, padding: "20px" }}>
             <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Order Summary</p>
             <div className="space-y-3" style={{ marginBottom: 16 }}>
-              <div className="flex justify-between">
-                <span style={{ fontSize: 12, color: "var(--muted-foreground-2)" }}>Subtotal ({items.length} items)</span>
-                <span style={{ fontSize: 12 }}>{formatEUR(subtotal)}</span>
-              </div>
+              {subtotal > 0 && (
+                <div className="flex justify-between">
+                  <span style={{ fontSize: 12, color: "var(--muted-foreground-2)" }}>
+                    One-time{onetimeItemCount > 0 ? ` (${onetimeItemCount} item${onetimeItemCount === 1 ? "" : "s"})` : ""}
+                  </span>
+                  <span style={{ fontSize: 12 }}>{formatEUR(subtotal)}</span>
+                </div>
+              )}
+              {monthlyTotal > 0 && (
+                <div className="flex justify-between">
+                  <span style={{ fontSize: 12, color: "var(--muted-foreground-2)" }}>Monthly charges</span>
+                  <span style={{ fontSize: 12 }}>{formatEUR(monthlyTotal)}/mo</span>
+                </div>
+              )}
+              {subtotal === 0 && monthlyTotal === 0 && (
+                <div className="flex justify-between">
+                  <span style={{ fontSize: 12, color: "var(--muted-foreground-2)" }}>Subtotal ({items.length} items)</span>
+                  <span style={{ fontSize: 12 }}>{formatEUR(0)}</span>
+                </div>
+              )}
               {bundleDiscount > 0 && (
                 <div className="flex justify-between">
                   <span style={{ fontSize: 12, color: "#22C55E", display: "flex", alignItems: "center", gap: 4 }}>
@@ -468,15 +505,30 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                 <span style={{ fontSize: 12, color: "#22C55E" }}>FREE</span>
               </div>
             </div>
-            <div style={{ borderTop: "1px solid rgba(var(--border-rgb),0.07)", paddingTop: 12, marginBottom: 6 }}>
-              <div className="flex justify-between">
-                <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
-                <span style={{ fontSize: 18, fontWeight: 700 }}>{formatEUR(total)}</span>
-              </div>
+            <div style={{ borderTop: "1px solid rgba(var(--border-rgb),0.07)", paddingTop: 12, marginBottom: 16 }}>
+              {onetimeTotal > 0 && monthlyTotal > 0 ? (
+                <>
+                  <div className="flex justify-between" style={{ marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Today</span>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>{formatEUR(onetimeTotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Monthly</span>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>{formatEUR(monthlyTotal)}<span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>/mo</span></span>
+                  </div>
+                </>
+              ) : monthlyTotal > 0 ? (
+                <div className="flex justify-between">
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
+                  <span style={{ fontSize: 18, fontWeight: 700 }}>{formatEUR(monthlyTotal)}<span style={{ fontSize: 12, fontWeight: 400, color: "var(--muted-foreground)" }}>/mo</span></span>
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
+                  <span style={{ fontSize: 18, fontWeight: 700 }}>{formatEUR(onetimeTotal)}</span>
+                </div>
+              )}
             </div>
-            {monthlyTotal > 0 && (
-              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 16 }}>+ {formatEUR(monthlyTotal)}/month ongoing</p>
-            )}
 
             <div className="grid grid-cols-3 gap-2 mb-4" style={{ marginTop: 16 }}>
               {[
@@ -510,5 +562,6 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

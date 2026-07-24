@@ -61,15 +61,35 @@ def _merge_profiles(target: PreferenceProfile, guest: PreferenceProfile) -> Pref
 class Session:
     def __init__(self, session_id: str):
         self.session_id = session_id
-        self.history: list[dict] = []          # [{role, content}]
+        # Keyed by conversation_id → list of {role, content, recommendations?}
+        self.conversations: dict[str, list[dict]] = {}
         self.profile = PreferenceProfile()
         self.cart = Cart(session_id=session_id)
 
+    # ── conversation helpers ────────────────────────────────────────────────────
+    def get_conversation(self, conversation_id: str) -> list[dict]:
+        """Return (and lazily create) the message list for a conversation thread."""
+        if conversation_id not in self.conversations:
+            self.conversations[conversation_id] = []
+        return self.conversations[conversation_id]
+
+    @property
+    def history(self) -> list[dict]:
+        """Flat view of all turns across all conversations.  Used by the profile
+        updater and any code that still accesses session.history directly."""
+        result: list[dict] = []
+        for conv in self.conversations.values():
+            result.extend(conv)
+        return result
+
     # --- serialization (for persistent backends) ---
     def to_dict(self) -> dict:
+        # Supabase schema column is still named `history`; it now stores the
+        # conversations dict (conv_id -> messages). Using the DB column name here
+        # keeps upserts working without a migration.
         return {
             "session_id": self.session_id,
-            "history": self.history,
+            "history": self.conversations,
             "profile": self.profile.model_dump(),
             "cart": self.cart.model_dump(),
         }
@@ -77,7 +97,15 @@ class Session:
     @classmethod
     def from_dict(cls, session_id: str, data: dict) -> "Session":
         s = cls(session_id)
-        s.history = data.get("history") or []
+        if "conversations" in data:
+            s.conversations = data.get("conversations") or {}
+        elif "history" in data:
+            raw = data.get("history") or []
+            if isinstance(raw, dict):
+                s.conversations = raw
+            elif raw:
+                # One-time migration: old flat history → single "legacy" thread
+                s.conversations["legacy"] = raw
         s.profile = PreferenceProfile(**(data.get("profile") or {}))
         cart_data = data.get("cart") or {"session_id": session_id}
         cart_data.setdefault("session_id", session_id)
@@ -288,18 +316,22 @@ class SessionStore:
         }
 
     def merge_guest_into_user(self, guest_session_id: str, user_id: str) -> Session:
-        """Called on register/login: fold a guest's history/profile/cart into the
-        session keyed by their permanent user_id, so nothing from the anonymous
-        browsing session is lost once they have an account. From then on the
-        frontend uses user_id as its session_id - the same store, no new concept.
-        """
+        """Called on register/login: fold a guest's conversations/profile/cart into
+        the session keyed by their permanent user_id.  Each conversation thread
+        keeps its own ID, so the frontend's stored conversation_id remains valid
+        after the session switch."""
         if guest_session_id == user_id:
             return self.get(user_id)
 
         guest = self.get(guest_session_id)
         target = self.get(user_id)
 
-        target.history = target.history + guest.history
+        # Merge conversation threads (same conv_id is very unlikely across sessions)
+        for conv_id, conv_history in guest.conversations.items():
+            if conv_id in target.conversations:
+                target.conversations[conv_id] = target.conversations[conv_id] + conv_history
+            else:
+                target.conversations[conv_id] = conv_history
         target.profile = _merge_profiles(target.profile, guest.profile)
 
         for item in guest.cart.items:
