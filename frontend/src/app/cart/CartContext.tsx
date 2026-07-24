@@ -7,7 +7,8 @@ import { getProducts } from "../api/mockApi";
 // backend/app/session/store.py) - that's what makes the cart survive a
 // refresh and carry over across devices/channels sharing the same session_id.
 // This context is just a thin, optimistic client cache over /cart/*.
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Keep this in sync with the catalog client: use the IPv4 backend explicitly.
+const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 interface BackendCartItem {
   product_id: string;
