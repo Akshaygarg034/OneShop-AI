@@ -123,7 +123,7 @@ def _make_backend():
             logger.info("auth: using Supabase for user accounts.")
             return backend
         except Exception as e:  # noqa - keep auth from taking the app down
-            logger.error(
+            logger.warning(
                 "auth: Supabase unavailable, falling back to in-memory users (accounts won't "
                 "survive a restart) - %s",
                 describe_supabase_error(e, SUPABASE_URL),

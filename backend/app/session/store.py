@@ -166,7 +166,7 @@ def _make_backend():
             logger.info("session: using Supabase persistence.")
             return backend
         except Exception as e:  # noqa - keep the demo bulletproof
-            logger.error(
+            logger.warning(
                 "session: Supabase unavailable, falling back to in-memory (sessions won't "
                 "survive a restart) - %s",
                 describe_supabase_error(e, SUPABASE_URL),

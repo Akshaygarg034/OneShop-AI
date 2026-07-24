@@ -11,15 +11,29 @@ if anything fails, so this doubles as a CI gate. Grouped by what it proves:
   PERSONALIZATION - ranking adapts after the user rejects a brand
   CART          - cart math + free-shipping + checkout are correct
   AUTH          - register/login work and a guest cart survives login
+  RAG           - semantic retrieval returns grounded catalog products (skipped if Qdrant is down)
 """
+import os
+
+# Force the harness fully offline/deterministic BEFORE app modules read config:
+# JSON catalog, in-memory sessions, no live Supabase/Qdrant calls. This keeps
+# evals fast, reproducible, and unable to pollute the real database.
+os.environ.setdefault("CATALOG_BACKEND", "json")
+os.environ.setdefault("SESSION_BACKEND", "memory")
+
 import sys
 import uuid
 
 from app.agents.graph import run_pipeline
 from app.auth.security import hash_password, verify_password
-from app.auth.users_store import UserStore
+from app.auth.users_store import MemoryUserBackend, UserStore
+from app.config import RAG_ENABLED
 from app.retrieval.catalog import get_product, load_catalog
 from app.session.store import Session, SessionStore
+
+
+class SkipCase(Exception):
+    """Raised by a case that can't run in this environment (e.g. Qdrant down)."""
 
 
 def _run(message: str):
@@ -186,7 +200,8 @@ def t_password_hash():
 
 @case("AUTH", "duplicate email registration is rejected")
 def t_duplicate_email():
-    user_store = UserStore()
+    # Explicit in-memory backend so the test never touches the real Supabase users table.
+    user_store = UserStore(MemoryUserBackend())
     user_store.create("dup@example.com", hash_password("pw1"))
     try:
         user_store.create("dup@example.com", hash_password("pw2"))
@@ -210,8 +225,30 @@ def t_merge_on_register():
     assert merged.cart.subtotal == 15.0 and merged.cart.monthly_total == 15.0
 
 
+# --------------------------------------------------------------------------- #
+# RAG - semantic retrieval (skipped if Qdrant/deps aren't available)          #
+# --------------------------------------------------------------------------- #
+@case("RAG", "semantic search returns grounded, in-catalog products")
+def t_rag_grounded():
+    try:
+        from app.rag.retriever import search
+    except ImportError:
+        raise SkipCase("RAG deps not installed")
+    try:
+        hits = search("phone with a great camera for travel", k=3)
+    except Exception as e:  # noqa - Qdrant down / collection not ingested
+        raise SkipCase(f"Qdrant unavailable ({type(e).__name__})")
+    if not hits:
+        raise SkipCase("collection empty - run `python -m app.rag.ingestion`")
+
+    catalog_ids = {p.id for p in load_catalog()}
+    for h in hits:
+        assert h["product_id"] in catalog_ids, \
+            f"RAG returned {h['product_id']} which is not a real catalog product"
+
+
 def main():
-    passed = 0
+    passed = skipped = 0
     current_group = None
     for group, name, fn in CASES:
         if group != current_group:
@@ -221,17 +258,22 @@ def main():
             fn()
             print(f"  PASS  {name}")
             passed += 1
+        except SkipCase as e:
+            print(f"  SKIP  {name}  ->  {e}")
+            skipped += 1
         except AssertionError as e:
             print(f"  FAIL  {name}  ->  {e}")
         except Exception as e:  # noqa
             print(f"  ERROR {name}  ->  {type(e).__name__}: {e}")
 
     total = len(CASES)
-    print(f"\n{'=' * 48}")
-    verdict = "ALL GREEN" if passed == total else "FAILURES"
-    print(f"  {passed}/{total} eval cases passed   [{verdict}]")
-    print(f"{'=' * 48}")
-    return 0 if passed == total else 1
+    required = total - skipped
+    print(f"\n{'=' * 52}")
+    verdict = "ALL GREEN" if passed == required else "FAILURES"
+    tail = f" ({skipped} skipped)" if skipped else ""
+    print(f"  {passed}/{required} runnable eval cases passed{tail}   [{verdict}]")
+    print(f"{'=' * 52}")
+    return 0 if passed == required else 1
 
 
 if __name__ == "__main__":
