@@ -4,13 +4,32 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // The SAME session id is used by OneShop (web) and OneApp (mobile) -> omnichannel.
+//
+// Resolution order (P4): URL ?session= param  >  localStorage  >  default.
+// The URL param is what makes the handoff work across *separate* windows/devices
+// (a second browser, a phone, an incognito tab) - not just channel-toggling inside
+// one tab. Whatever we resolve is written back to localStorage so it sticks.
+const DEFAULT_SESSION = "shopper-1";
+
 export function getSessionId() {
-  let id = localStorage.getItem("session_id");
-  if (!id) {
-    id = "shopper-1";
-    localStorage.setItem("session_id", id);
-  }
+  const fromUrl = new URLSearchParams(window.location.search).get("session");
+  let id = fromUrl || localStorage.getItem("session_id") || DEFAULT_SESSION;
+  localStorage.setItem("session_id", id);
   return id;
+}
+
+// Point a second device/window at the SAME session (e.g. behind a "continue on
+// mobile" button or a QR code). ?channel=mobile just hints the UI to open OneApp.
+export function getHandoffUrl(channel = "mobile") {
+  const url = new URL(window.location.href);
+  url.searchParams.set("session", getSessionId());
+  if (channel) url.searchParams.set("channel", channel);
+  return url.toString();
+}
+
+// Optional deep-link hint the UI can read to open the mobile view on load.
+export function getChannelFromUrl() {
+  return new URLSearchParams(window.location.search).get("channel");
 }
 
 async function post(path, body) {
