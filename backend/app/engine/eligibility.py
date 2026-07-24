@@ -19,8 +19,27 @@ def _within_budget(p: Product, intent: Intent) -> bool:
     return p.price_monthly <= intent.budget_monthly_max
 
 
+def _brand_matches(p: Product, intent: Intent) -> bool:
+    # Only phones/accessories/bundles carry a real consumer brand; a brand ask
+    # ("show me an iPhone") shouldn't exclude the Telekom plans that pair with it.
+    if not intent.brand or p.type.value == "plan":
+        return True
+    return p.brand == intent.brand
+
+
+def _type_matches(p: Product, intent: Intent) -> bool:
+    # When the customer explicitly names product types, only those are offerable.
+    if not intent.product_types:
+        return True
+    return p.type.value in intent.product_types
+
+
 def evaluate(p: Product, intent: Intent) -> EligibleProduct:
-    """Run every rule against one product and record why it passed/failed."""
+    """Run every rule against one product and record why it passed/failed.
+
+    These are HARD, deterministic constraints - the LLM proposes candidates, but
+    only products that clear every rule here are offerable. This is what stops
+    "show me an iPhone for €20" from silently returning a Samsung."""
     reasons: list[str] = []
     failed: list[str] = []
 
@@ -35,6 +54,20 @@ def evaluate(p: Product, intent: Intent) -> EligibleProduct:
         reasons.append("within_budget")
     else:
         failed.append("over_budget")
+
+    # Rule: matches the requested brand (if any)
+    if _brand_matches(p, intent):
+        if intent.brand:
+            reasons.append("brand_match")
+    else:
+        failed.append("brand_mismatch")
+
+    # Rule: matches the requested product type(s) (if any)
+    if _type_matches(p, intent):
+        if intent.product_types:
+            reasons.append("type_match")
+    else:
+        failed.append("wrong_type")
 
     return EligibleProduct(
         product=p,

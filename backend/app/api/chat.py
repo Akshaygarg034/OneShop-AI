@@ -4,9 +4,10 @@ Loads the session, runs the pipeline, returns a ChatResponse.
 """
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 
 from app.agents.graph import run_pipeline
+from app.auth.deps import assert_session_owner
 from app.contracts.models import (
     ChatConversationsResponse,
     ChatHistoryMessage,
@@ -30,11 +31,12 @@ def chat(req: ChatRequest) -> ChatResponse:
 
 
 @router.get("/chat/history", response_model=ChatHistoryResponse)
-def history(session_id: str, conversation_id: str = "") -> ChatHistoryResponse:
+def history(session_id: str, conversation_id: str = "", authorization: str = Header(default="")) -> ChatHistoryResponse:
     """Return the message history for a specific conversation thread.
     If conversation_id is omitted the most-recently-active thread is returned,
     which is the right default for a returning user who just wants to continue.
     session_id becomes user_id after login, so history persists across devices."""
+    assert_session_owner(session_id, authorization)
     session = store.get(session_id)
     if conversation_id and conversation_id in session.conversations:
         hist = session.conversations[conversation_id]
@@ -62,8 +64,9 @@ def history(session_id: str, conversation_id: str = "") -> ChatHistoryResponse:
 
 
 @router.get("/chat/conversations", response_model=ChatConversationsResponse)
-def conversations(session_id: str) -> ChatConversationsResponse:
+def conversations(session_id: str, authorization: str = Header(default="")) -> ChatConversationsResponse:
     """List all conversation thread IDs for a session."""
+    assert_session_owner(session_id, authorization)
     session = store.get(session_id)
     return ChatConversationsResponse(
         session_id=session_id,

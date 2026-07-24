@@ -17,8 +17,11 @@ sentence-transformers==5.6.1
 numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
 
 # --- Real mode: OpenAI generation - intent extraction + "why" explanations ---
-# Direct openai SDK (not langchain-openai), so it has no dependency conflict
-# with the RAG stack above.
+# langchain-openai is NOT used here: its 0.3.x series needs langchain-core<1.0.0
+# (conflicts with qdrant/huggingface >=1.0.0) and its 1.x series needs openai>=1.109
+# (conflicts with the pinned 1.54.4 below).  Instead we use:
+#   - openai's native Pydantic structured output (client.beta.chat.completions.parse)
+#   - langchain-core message types (already in env via RAG stack) for history
 openai==1.54.4
 
 # --- Real mode: session persistence (P4) ---

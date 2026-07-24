@@ -8,10 +8,16 @@ REAL:  OpenAI extracts structured JSON matching the Intent contract. Any failure
        (missing/bad key, rate limit, network, malformed JSON) falls back to the
        mock parser automatically - flipping MOCK_MODE=false can never 500 the
        pipeline, it just prefers the real extraction when it's available.
+
+`history` is the CURRENT conversation thread's turns (passed in by the
+orchestrator), already loaded fresh from the persisted session - so multi-turn
+context survives restarts without bleeding across unrelated threads.
 """
-import json
 import logging
 import re
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 from app.config import MOCK_MODE
 from app.contracts.models import Intent, PreferenceProfile
@@ -27,23 +33,54 @@ _FEATURE_WORDS = {
     "unlimited": ["unlimited", "lots of data", "stream", "streaming"],
 }
 
-_SYSTEM_PROMPT = """You extract shopping intent from a customer's message for a \
-Telekom phone/plan/accessory shop. Reply with ONLY a JSON object, no prose, \
-matching exactly this shape:
-
-{
-  "use_case": "<short paraphrase of what they want>",
-  "budget_monthly_max": <number or null>,
-  "priority_features": [<subset of: "camera","eu_roaming","gaming","5g","unlimited">],
-  "product_types": [<subset of: "phone","plan","accessory">],
-  "clarification_needed": <true|false>,
-  "clarification_question": "<a single short question, or null>"
+# Map the words a customer uses to the canonical brand names in the catalog.
+_BRAND_WORDS = {
+    "Apple": ["apple", "iphone", "ios"],
+    "Samsung": ["samsung", "galaxy"],
+    "Google": ["google", "pixel"],
+    "Telekom": ["telekom", "magenta"],
 }
+_VALID_BRANDS = set(_BRAND_WORDS.keys())
+
+
+def _canonical_brand(raw: Optional[str]) -> Optional[str]:
+    """Normalise a free-text brand ('iPhone', 'galaxy') to a catalog brand."""
+    if not raw:
+        return None
+    low = raw.strip().lower()
+    for canon, words in _BRAND_WORDS.items():
+        if low == canon.lower() or any(w in low for w in words):
+            return canon
+    return None
+
+
+# Structured output schema - OpenAI fills this; profile is added by us afterwards.
+class _IntentOutput(BaseModel):
+    use_case: str = ""
+    budget_monthly_max: Optional[float] = None
+    brand: Optional[str] = None
+    priority_features: list[str] = Field(default_factory=list)
+    product_types: list[str] = Field(default_factory=list)
+    clarification_needed: bool = False
+    clarification_question: Optional[str] = None
+
+
+_SYSTEM_PROMPT = """You extract shopping intent from a customer's message for a \
+Telekom phone/plan/accessory shop. Fill the response schema with:
+
+  use_case: short paraphrase of what they want
+  budget_monthly_max: EUR/month number if mentioned (e.g. "under 40" -> 40), else null
+  brand: the canonical brand IF the customer names a specific brand or model -
+         one of [Apple, Samsung, Google, Telekom] (map "iPhone"->Apple,
+         "Galaxy"->Samsung, "Pixel"->Google), else null
+  priority_features: subset of [camera, eu_roaming, gaming, 5g, unlimited]
+  product_types: subset of [phone, plan, accessory]
+  clarification_needed: true ONLY if message is too vague to act on at all
+  clarification_question: a single short question if clarification_needed, else null
 
 Rules:
-- clarification_needed=true ONLY if the message is too vague to act on at all
-  (no budget, no feature, no product type, and fewer than ~6 words).
-- budget_monthly_max is a EUR/month figure if mentioned (e.g. "under 40 euros" -> 40).
+- clarification_needed=true only if no budget, no brand, no feature, no product type, fewer than ~6 words.
+- Set brand ONLY when the customer explicitly names one; never guess a brand from features.
 - Never invent features/types not implied by the message.
 """
 
@@ -71,6 +108,12 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
 
     features = [feat for feat, words in _FEATURE_WORDS.items() if any(w in msg for w in words)]
 
+    brand = None
+    for canon, words in _BRAND_WORDS.items():
+        if any(w in msg for w in words):
+            brand = canon
+            break
+
     product_types = []
     if any(w in msg for w in ["phone", "device", "smartphone"]):
         product_types.append("phone")
@@ -80,11 +123,15 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
         product_types.append("accessory")
 
     # Clarification: too vague ("good and cheap" with nothing concrete)
-    clarify = not features and not product_types and budget is None and len(msg.split()) < 6
+    clarify = (
+        not features and not product_types and not brand
+        and budget is None and len(msg.split()) < 6
+    )
 
     return Intent(
         use_case=message,
         budget_monthly_max=budget,
+        brand=brand,
         priority_features=features,
         product_types=product_types,
         clarification_needed=clarify,
@@ -98,38 +145,50 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
 
 
 def _extract_real(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
-    from openai import OpenAI  # heavy import, kept local so mock mode needs nothing installed
+    """Real extraction via openai's native Pydantic structured output.
+
+    Uses client.beta.chat.completions.parse(response_format=_IntentOutput)
+    instead of fragile json.loads(). `history` is the current thread's turns,
+    already loaded from the persisted session by the orchestrator.
+    """
+    from openai import OpenAI
 
     from app.config import OPENAI_API_KEY, OPENAI_MODEL
 
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY not set")
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    recent = history[-6:] if history else []
-    context = "\n".join(f"{h['role']}: {h['content']}" for h in recent)
+    past = [
+        {"role": t.get("role", "user"), "content": t.get("content", "")}
+        for t in (history[-6:] if history else [])
+    ]
+    messages = (
+        [{"role": "system", "content": _SYSTEM_PROMPT}]
+        + past
+        + [{"role": "user", "content": message}]
+    )
 
-    resp = client.chat.completions.create(
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    resp = client.beta.chat.completions.parse(
         model=OPENAI_MODEL,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": f"Recent conversation:\n{context}\n\nNew message: {message}"},
-        ],
+        messages=messages,
+        response_format=_IntentOutput,
         temperature=0,
         timeout=15,
     )
-    data = json.loads(resp.choices[0].message.content)
+    result: _IntentOutput = resp.choices[0].message.parsed
 
     valid_features = set(_FEATURE_WORDS.keys())
     valid_types = {"phone", "plan", "accessory"}
+    brand = _canonical_brand(result.brand)
 
     return Intent(
-        use_case=str(data.get("use_case") or message),
-        budget_monthly_max=data.get("budget_monthly_max") or profile.budget_monthly_max,
-        priority_features=[f for f in (data.get("priority_features") or []) if f in valid_features],
-        product_types=[t for t in (data.get("product_types") or []) if t in valid_types],
-        clarification_needed=bool(data.get("clarification_needed", False)),
-        clarification_question=data.get("clarification_question"),
+        use_case=result.use_case or message,
+        budget_monthly_max=result.budget_monthly_max or profile.budget_monthly_max,
+        brand=brand,
+        priority_features=[f for f in result.priority_features if f in valid_features],
+        product_types=[t for t in result.product_types if t in valid_types],
+        clarification_needed=result.clarification_needed,
+        clarification_question=result.clarification_question,
         profile=profile,
     )

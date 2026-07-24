@@ -275,8 +275,17 @@ export function logoutUser(): void {
   clearSessionId();
 }
 
+// Private chat data (history/conversations) is owner-gated on the backend once
+// you're logged in, so these reads must carry the auth token.
+function authHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function fetchConversations(): Promise<string[]> {
-  const res = await fetch(`${BASE}/chat/conversations?session_id=${getSessionId()}`);
+  const res = await fetch(`${BASE}/chat/conversations?session_id=${getSessionId()}`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) return [];
   const data: { session_id: string; conversation_ids: string[] } = await res.json();
   return data.conversation_ids ?? [];
@@ -288,7 +297,7 @@ export async function fetchChatHistory(conversationId?: string): Promise<{
 }> {
   const params = new URLSearchParams({ session_id: getSessionId() });
   if (conversationId) params.set("conversation_id", conversationId);
-  const res = await fetch(`${BASE}/chat/history?${params}`);
+  const res = await fetch(`${BASE}/chat/history?${params}`, { headers: authHeaders() });
   if (!res.ok) return { conversationId: conversationId ?? "", history: [] };
   const data: { conversation_id: string; history: HistoryMessage[] } = await res.json();
   return { conversationId: data.conversation_id ?? "", history: data.history ?? [] };

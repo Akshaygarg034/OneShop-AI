@@ -43,13 +43,23 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "telekom_catalog")
 
-# Embeddings (P2) - Grok has no embeddings API, so use a local open model.
+# Embeddings (P2) - OpenAI has no affordable embeddings for local RAG, so use a local open model.
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-# Local directory where the downloaded model is cached (relative to backend/).
-# Once downloaded it is read from disk on every subsequent start - no internet.
+# Local directory where the downloaded model is cached. Once downloaded it is
+# read from disk on every subsequent start - no internet.
+#
+# IMPORTANT: this must live OUTSIDE backend/ (a sibling of it, not inside it).
+# `uvicorn --reload` watches the current working directory (backend/, per the
+# documented run command) for file changes. sentence-transformers/huggingface_hub
+# write lock files here on every embed call - if this dir were under backend/,
+# every single query would touch a watched file, trigger a full server reload,
+# wipe the in-process model cache (see app/rag/retriever.py's @lru_cache), and
+# force the ~90MB model to reload on the very next request. That was exactly the
+# "model reloads on every query" bug - fixed by moving the cache out of the
+# watched tree, not by changing the caching code itself.
 MODEL_CACHE_DIR = os.getenv(
     "MODEL_CACHE_DIR",
-    os.path.join(os.path.dirname(__file__), "..", "models"),
+    os.path.join(os.path.dirname(__file__), "..", "..", ".model_cache"),
 )
 
 # Semantic retrieval switch, independent of MOCK_MODE so RAG can be real while

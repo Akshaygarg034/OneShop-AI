@@ -34,7 +34,7 @@ cd backend && python -m evals.run_evals
 ## How it works (the core idea)
 
 > **AI generates. Deterministic rules decide.**
-> The LLM (Grok) converses, ranks, and explains. A deterministic engine decides what's
+> The LLM (OpenAI) converses, ranks, and explains. A deterministic engine decides what's
 > actually offerable (stock / budget / eligibility). The AI can never recommend a product
 > the rules reject — so it never hallucinates.
 
@@ -49,4 +49,4 @@ mock with real code, then flips their part to real — nobody is blocked. See
 
 ## Stack
 
-Grok (xAI) · LangGraph · FastAPI · Qdrant + sentence-transformers · React (Vite)
+OpenAI · LangGraph · FastAPI · Qdrant + sentence-transformers · React (Vite)

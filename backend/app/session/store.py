@@ -19,6 +19,7 @@ installed.
 from __future__ import annotations
 
 import logging
+import uuid
 
 from app.config import SESSION_BACKEND, SUPABASE_KEY, SUPABASE_URL
 from app.contracts.models import Cart, CartItem, PreferenceProfile, Product
@@ -352,7 +353,8 @@ class SessionStore:
         free_shipping = cart.subtotal >= cart.free_shipping_threshold
         summary = {
             "session_id": session_id,
-            "order_id": f"TK-{abs(hash((session_id, len(cart.items), cart.subtotal))) % 1_000_000:06d}",
+            # Unique per order; uuid (not hash(), which is per-process randomised).
+            "order_id": f"TK-{uuid.uuid4().hex[:8].upper()}",
             "items": [i.model_dump() for i in cart.items],
             "onetime_total": cart.subtotal,          # goods paid today
             "monthly_total": cart.monthly_total,     # recurring commitment
