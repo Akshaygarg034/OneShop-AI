@@ -208,7 +208,7 @@ function ProductCard({
         <img
           src={product.image}
           alt={product.name}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block" }}
         />
       </div>
 

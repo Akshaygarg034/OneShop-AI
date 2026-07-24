@@ -234,7 +234,14 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                   <img
                     src={product.image}
                     alt={product.name}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", opacity: product.inStock ? 1 : 0.5 }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      objectPosition: "center",
+                      display: "block",
+                      opacity: product.inStock ? 1 : 0.5,
+                    }}
                   />
                   <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
                     <span
