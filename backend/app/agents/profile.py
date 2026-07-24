@@ -24,6 +24,9 @@ def update_profile(profile: PreferenceProfile, message: str, intent: Intent) -> 
         if f not in profile.features_mentioned:
             profile.features_mentioned.append(f)
 
+    # Brand affinity: from the LLM-extracted brand (most reliable) + raw keywords.
+    if intent.brand and intent.brand not in profile.brands_viewed:
+        profile.brands_viewed.append(intent.brand)
     for b in _BRANDS:
         if b in msg:
             canon = _BRAND_CANON[b]

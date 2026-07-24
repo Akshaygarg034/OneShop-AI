@@ -133,6 +133,13 @@ class ChatConversationsResponse(BaseModel):
     conversation_ids: list[str] = Field(default_factory=list)
 
 
+class SessionProfileResponse(BaseModel):
+    """The preference profile the assistant has learned for this session/user -
+    exposed so personalization is visible and testable."""
+    session_id: str
+    profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
+
+
 class ChatResponse(BaseModel):
     """The one object the /chat endpoint returns. The whole app depends on this."""
     reply_text: str
