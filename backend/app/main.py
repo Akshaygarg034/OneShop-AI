@@ -41,12 +41,7 @@ app = FastAPI(title="Telekom Smart Shopping Assistant", lifespan=lifespan)
 # of sync, which silently broke every fetch when running via launch.json.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5180",
-        "http://127.0.0.1:5180",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
