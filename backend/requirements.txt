@@ -5,20 +5,31 @@ pydantic==2.9.2
 email-validator==2.1.0
 python-dotenv==1.0.1
 
-# --- Real mode: Grok generation via LangGraph (P1, P3) ---
-langgraph==0.2.28
-langchain-core==0.3.9
-langchain-xai==0.1.5
+# --- Real mode: RAG / semantic retrieval (P2) ---
+# These pull langchain-core 1.x. Verified working set:
+qdrant-client==1.18.0
+langchain-qdrant==1.1.0
+langchain-huggingface==1.2.2
+sentence-transformers==5.6.1
+numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
 
-# --- Real mode: RAG (P2) ---
-qdrant-client==1.11.2
-sentence-transformers==3.1.1
+# --- Real mode: Grok generation via LangGraph (P1, P3) ---
+# NOTE: langgraph 0.2.x + langchain-xai 0.1.x need langchain-core 0.3.x, which
+# CONFLICTS with the RAG stack above (langchain-core 1.x). Install these only in
+# a separate env for the Grok path, or upgrade them to langchain-core 1.x
+# compatible releases. They are NOT needed while MOCK_MODE=true.
+# langgraph==0.2.28
+# langchain-core==0.3.9
+# langchain-xai==0.1.5
 
 # --- Real mode: session persistence (P4) ---
 # 2.7.4's client constructor rejected any non-JWT key, so it raised
 # "Invalid API key" for the new sb_secret_/sb_publishable_ keys before ever
 # hitting the network. 2.31.0 accepts the new key format.
+# We use the REST API (not psycopg2) - the direct db.<ref>.supabase.co host is
+# IPv6-only and usually won't resolve; the REST endpoint always works over HTTPS.
 supabase==2.31.0
+websockets==15.0.1   # supabase's realtime needs websockets.asyncio (>=13) but <16
 
 # --- Testing (P4) ---
 pytest==8.3.3

@@ -16,24 +16,66 @@ python -m evals.run_evals
 ```
 
 ## Going real
+
+Everything below degrades gracefully — if a service is down or unconfigured, the
+app falls back (Postgres → JSON catalog, Qdrant → keyword search, Supabase → memory),
+so the demo never hard-fails.
+
+**1. Auth + catalog in Supabase (Postgres over REST):**
 ```bash
-pip install -r requirements.txt          # adds langgraph, langchain-xai, qdrant, embeddings
-docker compose up -d qdrant              # from repo root, for P2
-# set XAI_API_KEY in .env, and flip MOCK_MODE=false when your slice is ready
+pip install -r requirements.txt
+# In .env set SUPABASE_URL (https://<ref>.supabase.co) and SUPABASE_KEY
+# (a service_role JWT or an sb_secret_... key from Settings -> API).
+# We use the REST API, NOT a direct psycopg2 connection — the direct
+# db.<ref>.supabase.co host is IPv6-only and usually won't resolve.
+
+# Run these once in the Supabase SQL editor:
+#   app/auth/supabase_schema.sql          (users)
+#   app/retrieval/catalog_schema.sql      (catalog_products — prices/stock)
+#   app/session/supabase_schema.sql       (sessions — optional persistence)
+
+python -m app.retrieval.seed_catalog      # load prices/stock into catalog_products
 ```
+
+**2. Semantic retrieval (RAG) with Qdrant:**
+```bash
+docker compose up -d qdrant               # from repo root
+python -m app.rag.ingestion               # embed data/products_vector.json -> Qdrant
+# set RAG_ENABLED=true in .env    (retrieve() now does vector search)
+python -m app.rag.retriever               # optional: manual search REPL
+```
+
+**3. Grok generation (P1/P3):** set `XAI_API_KEY` and flip `MOCK_MODE=false`.
+
+### Data split (prices in Postgres, meaning in the vector DB)
+- `data/products_postgres.json` → seeds `catalog_products` (id, prices, stock, compatibility).
+- `data/products_vector.json`   → embedded into Qdrant (description + features).
+- Retrieval finds candidate ids by meaning in Qdrant, then reads authoritative
+  prices/stock from Postgres — "AI generates, deterministic rules decide."
 
 ## Layout (folder = owner)
 ```
 app/
-  contracts/models.py   SHARED  - data shapes (single source of truth)
-  agents/               P1      - intent, profile, graph orchestrator
-  retrieval/            P2      - Qdrant RAG + catalog loader
-  engine/               P2      - deterministic eligibility engine
-  recommend/            P3      - ranking, "why", next-best-action
-  session/              P4      - session store, cart, checkout
-  api/                  chat.py(P1) cart.py(P4) catalog.py(P2)
-data/catalog.json       P2      - product data
-evals/run_evals.py      P4      - proof harness
+  contracts/models.py   - data shapes (single source of truth)
+  agents/               - intent, profile, graph orchestrator
+  retrieval/            - catalog loader (Postgres/JSON) + keyword/semantic retrieve
+  rag/                  - Qdrant ingestion + semantic search (importable modules)
+  engine/               - deterministic eligibility engine
+  recommend/            - ranking, "why", next-best-action
+  session/              - session store, cart, checkout
+  auth/                 - user accounts (Supabase users table) + tokens
+  api/                  - chat.py, cart.py, catalog.py, auth.py
+data/
+  products_postgres.json  - prices/stock (seeds catalog_products)
+  products_vector.json    - semantic text (embedded into Qdrant)
+  catalog.json            - legacy single-file fallback
+evals/run_evals.py      - proof harness (offline; some cases skip if Qdrant is down)
 ```
 
-Key switch: `MOCK_MODE` in `.env` / `app/config.py`. See [`../START_HERE.md`](../START_HERE.md).
+Switches in `.env` / `app/config.py`:
+- `MOCK_MODE`        - Grok generation on/off (intent, "why")
+- `RAG_ENABLED`      - semantic Qdrant retrieval vs keyword matching
+- `CATALOG_BACKEND`  - `auto` (Postgres+fallback) or `json`
+- `SESSION_BACKEND`  - `auto`/`memory`/`supabase`
+
+See [`../START_HERE.md`](../START_HERE.md).
