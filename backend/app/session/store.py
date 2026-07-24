@@ -194,6 +194,29 @@ class SessionStore:
         self.save(session)
         return session.cart
 
+    def cart_summary(self, session_id: str) -> dict:
+        """Read-only, display-ready cart summary for the checkout review screen.
+        Does NOT clear the cart (unlike checkout). Splits today's goods from the
+        monthly commitment and computes the free-shipping nudge."""
+        cart = self.get(session_id).cart
+        remaining = round(max(0.0, cart.free_shipping_threshold - cart.subtotal), 2)
+        qualifies = cart.subtotal >= cart.free_shipping_threshold
+        return {
+            "session_id": session_id,
+            "items": [i.model_dump() for i in cart.items],
+            "item_count": sum(i.qty for i in cart.items),
+            "onetime_total": cart.subtotal,
+            "monthly_total": cart.monthly_total,
+            "free_shipping_threshold": cart.free_shipping_threshold,
+            "free_shipping_qualified": qualifies,
+            "amount_to_free_shipping": 0.0 if qualifies else remaining,
+            "shipping_note": (
+                "You've unlocked free shipping." if qualifies
+                else f"Add €{remaining:g} more for free shipping." if remaining > 0
+                else "Add an accessory to qualify for free shipping."
+            ),
+        }
+
     def checkout(self, session_id: str) -> dict:
         session = self.get(session_id)
         cart = session.cart

@@ -55,6 +55,12 @@ export const getCart = async () => {
   return res.json();
 };
 
+// Read-only summary for the checkout review screen (split totals + free-shipping).
+export const getCartSummary = async () => {
+  const res = await fetch(`${BASE}/cart/summary?session_id=${getSessionId()}`);
+  return res.json();
+};
+
 export const addToCart = (product_id, qty = 1) =>
   post("/cart/add", { session_id: getSessionId(), product_id, qty });
 

@@ -26,6 +26,12 @@ def get_cart(session_id: str) -> Cart:
     return store.get(session_id).cart
 
 
+@router.get("/summary")
+def summary(session_id: str) -> dict:
+    """Display-ready cart for the checkout review screen (does NOT clear the cart)."""
+    return store.cart_summary(session_id)
+
+
 @router.post("/add", response_model=Cart)
 def add(op: CartOp) -> Cart:
     return store.add_to_cart(op.session_id, op.product_id, op.qty)
