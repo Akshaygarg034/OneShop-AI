@@ -153,15 +153,36 @@ def rank_products(
     return scored[:top_k] if top_k else scored
 
 
+# A candidate must score at least this fraction of the top pick's weighted
+# score to be shown alongside it. Without this, _diversify always padded to
+# exactly k - e.g. confirming "yes" to a suggested protective case would still
+# show wireless earbuds in slot 2/3 just to fill the slot, even though nothing
+# about the request matched them (preference signal 0.0). Empirically checked
+# against both a genuine multi-option browse (3 comparable phones, weakest at
+# ~63% of the top score - stays) and a specific-item confirmation (unrelated
+# accessory at ~49% - now dropped, a same-purpose accessory at ~87% - stays).
+_MIN_RELATIVE_SCORE = 0.55
+
+
 def _diversify(scored: list[Scored], k: int) -> list[Scored]:
     """Greedy top-k that avoids showing near-duplicates (same brand + type)
     while the score ranking still has room to choose - e.g. don't fill all 3
-    slots with Samsung phones when a Google option is nearly as good. Falls
-    back to allowing duplicates once genuinely diverse options run out, so it
-    never returns fewer than min(k, len(scored))."""
+    slots with Samsung phones when a Google option is nearly as good.
+
+    First drops any candidate that isn't genuinely competitive with the top
+    pick (see _MIN_RELATIVE_SCORE), so a strong single match doesn't get padded
+    out with irrelevant filler. The top pick itself is always kept. Falls back
+    to allowing (brand, type) duplicates once genuinely diverse options run
+    out, so it never returns fewer than min(k, number of competitive items)."""
+    if not scored:
+        return []
+
+    top_score = scored[0][1]
+    floor = top_score * _MIN_RELATIVE_SCORE if top_score > 0 else 0.0
+    pool = [scored[0]] + [s for s in scored[1:] if s[1] >= floor]
+
     chosen: list[Scored] = []
     seen: set[tuple[str, str]] = set()
-    pool = list(scored)
     while pool and len(chosen) < k:
         pick_idx = next(
             (i for i, c in enumerate(pool) if (c[0].product.brand, c[0].product.type.value) not in seen),
@@ -197,6 +218,12 @@ def template_why(e: EligibleProduct, profile: PreferenceProfile, signals: dict, 
         feature_bits.append("EU roaming for travel")
     if "unlimited" in matched or "5g" in matched:
         feature_bits.append("fast data")
+    if "protection" in matched:
+        feature_bits.append("keeping your device protected")
+    if "audio" in matched or "wireless" in matched:
+        feature_bits.append("your audio needs")
+    if "charging" in matched:
+        feature_bits.append("fast charging")
     reason = ", ".join(feature_bits) if feature_bits else "your recent preferences"
 
     parts = [f"{p.name} matches {reason}"]

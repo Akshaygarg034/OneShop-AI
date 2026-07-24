@@ -183,6 +183,19 @@ def t_nudge_in_history():
         "the nudge shown to the user was not saved into history"
 
 
+@case("CONVERSATION", "confirming a specific accessory doesn't pad the list with unrelated ones")
+def t_no_padding_for_specific_item():
+    # Confirming a specific suggestion (a protective case) should recommend the
+    # case (and, fairly, other protection items like a screen protector) - NOT
+    # get padded out to 3 with something irrelevant like wireless earbuds just
+    # to fill the slot.
+    r = _run("yes, add a protective case please")
+    ids = [x.product_id for x in r.recommendations]
+    assert "accessory_case" in ids, "expected the case itself to be recommended"
+    assert "accessory_buds" not in ids, \
+        "earbuds have no relevance to a case confirmation and should not pad the list"
+
+
 # --------------------------------------------------------------------------- #
 # PERSONALIZATION - ranking adapts to the profile                             #
 # --------------------------------------------------------------------------- #

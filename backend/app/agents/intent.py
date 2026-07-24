@@ -24,13 +24,25 @@ from app.contracts.models import Intent, PreferenceProfile
 
 logger = logging.getLogger(__name__)
 
-# Simple feature keyword map for the mock.
+# Simple feature keyword map for the mock. Also doubles as the valid-features
+# allowlist for the real (OpenAI) path below.
+#
+# IMPORTANT: this must cover every feature that appears in the catalog (see
+# data/products_vector.json), including accessory features (protection/audio/
+# wireless/charging) - not just phone/plan features. Without them, "yes" to a
+# specific nudge (e.g. "add a protective case?") has no feature to carry
+# forward, so ranking can't tell the case apart from earbuds/charger and just
+# shows all three.
 _FEATURE_WORDS = {
     "camera": ["camera", "photo", "photos", "picture"],
     "eu_roaming": ["travel", "roaming", "europe", "abroad"],
     "gaming": ["gaming", "game", "games"],
     "5g": ["5g", "fast internet"],
     "unlimited": ["unlimited", "lots of data", "stream", "streaming"],
+    "protection": ["case", "cover", "protect", "protective", "screen protector", "shockproof"],
+    "audio": ["earbuds", "headphone", "headphones", "buds", "earphone", "earphones", "audio"],
+    "wireless": ["wireless"],
+    "charging": ["charger", "charging", "fast charge", "power adapter", "adapter"],
 }
 
 # Map the words a customer uses to the canonical brand names in the catalog.
@@ -73,7 +85,10 @@ Telekom phone/plan/accessory shop. Fill the response schema with:
   brand: the canonical brand IF the customer names a specific brand or model -
          one of [Apple, Samsung, Google, Telekom] (map "iPhone"->Apple,
          "Galaxy"->Samsung, "Pixel"->Google), else null
-  priority_features: subset of [camera, eu_roaming, gaming, 5g, unlimited]
+  priority_features: subset of [camera, eu_roaming, gaming, 5g, unlimited,
+                                 protection, audio, wireless, charging]
+                     (protection=cases/screen protectors, audio=earbuds/headphones,
+                     charging=chargers/power adapters)
   product_types: subset of [phone, plan, accessory]
   clarification_needed: true ONLY if message is too vague to act on at all
   clarification_question: a single short question if clarification_needed, else null
@@ -92,6 +107,12 @@ conversation history to resolve it into a concrete intent. If your last turn
 offered to show accessories/plans/a bundle and the user agrees, set the matching
 product_types (e.g. ["accessory"]) and a clear use_case - do NOT ask for
 clarification, and do NOT repeat the previous intent unchanged.
+
+If your last turn named a SPECIFIC item (e.g. "add a protective case?", "add
+wireless earbuds?"), and the user agrees, set priority_features to that item's
+defining feature (case/screen protector -> protection, earbuds/headphones ->
+audio, charger -> charging) so the reply narrows to that one item instead of
+every accessory.
 """
 
 
