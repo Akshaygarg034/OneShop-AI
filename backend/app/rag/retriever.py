@@ -14,17 +14,7 @@ Manual test:  cd backend && python -m app.rag.retriever
 import logging
 from functools import lru_cache
 
-<<<<<<< HEAD
-from app.config import (
-    EMBED_MODEL,
-    MODEL_CACHE_DIR,
-    QDRANT_API_KEY,
-    QDRANT_COLLECTION,
-    QDRANT_URL,
-)
-=======
 from app.config import EMBED_MODEL, MODEL_CACHE_DIR, QDRANT_API_KEY, QDRANT_COLLECTION, QDRANT_URL
->>>>>>> e13692f (WIP: Save local changes)
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +35,10 @@ def _vector_store():
     from langchain_qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
 
-<<<<<<< HEAD
-=======
-    embeddings = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder=MODEL_CACHE_DIR)
-    # ingestion.py authenticates with QDRANT_API_KEY; this client didn't, so
-    # every query-time search 401'd against an auth-protected Qdrant and
-    # silently fell back to keyword search - RAG was configured correctly but
-    # never actually ran.
->>>>>>> e13692f (WIP: Save local changes)
+    # ingestion.py authenticates with QDRANT_API_KEY; this client used to omit
+    # it, so every query-time search 401'd against an auth-protected Qdrant
+    # and silently fell back to keyword search - RAG was configured correctly
+    # but never actually ran.
     client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
     return QdrantVectorStore(
         client=client,
