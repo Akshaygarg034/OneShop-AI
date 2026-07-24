@@ -19,10 +19,16 @@ def _within_budget(p: Product, intent: Intent) -> bool:
     return p.price_monthly <= intent.budget_monthly_max
 
 
+# Brand only meaningfully partitions PHONES in this catalog - plans, accessories
+# and bundles are all Telekom's own. So a brand ask ("show me an iPhone") filters
+# phones by brand but must NOT exclude the Telekom case/plan/bundle that pairs
+# with it. This also stops a brand from a prior phone turn leaking onto a later
+# "yes, add a case" follow-up and wrongly filtering out every accessory.
+_BRANDED_TYPES = {"phone"}
+
+
 def _brand_matches(p: Product, intent: Intent) -> bool:
-    # Only phones/accessories/bundles carry a real consumer brand; a brand ask
-    # ("show me an iPhone") shouldn't exclude the Telekom plans that pair with it.
-    if not intent.brand or p.type.value == "plan":
+    if not intent.brand or p.type.value not in _BRANDED_TYPES:
         return True
     return p.brand == intent.brand
 
