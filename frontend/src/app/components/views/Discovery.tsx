@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Sparkles, ShoppingCart, Info, Star, TrendingUp, X, Check, RefreshCw } from "lucide-react";
 import { useCart } from "../../cart/CartContext";
+import { useAuth } from "../../auth/AuthContext";
 import { getProducts } from "../../api/mockApi";
 import { formatEUR } from "../../lib/format";
 import { isAiRecommended } from "../../lib/products";
+import { AuthModal } from "../AuthModal";
 import type { Product } from "../../types";
 
 const categories = ["All", "Phones", "Plans", "Accessories", "Bundles", "Smart Home"];
@@ -109,7 +111,9 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [whyProduct, setWhyProduct] = useState<Product | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
   const { addItem, removeItem, isInCart } = useCart();
+  const { user } = useAuth();
 
   const loadProducts = () => {
     setLoading(true);
@@ -130,45 +134,54 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
     .filter((p) => !query || p.name.toLowerCase().includes(query) || p.tags.some((t) => t.toLowerCase().includes(query)));
 
   return (
-    <div style={{ color: "var(--foreground)", maxWidth: 1280, margin: "0 auto", padding: "40px 32px" }}>
+    <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-8 sm:py-10" style={{ color: "var(--foreground)" }}>
       {whyProduct && <WhyModal product={whyProduct} onClose={() => setWhyProduct(null)} />}
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
       {/* Hero */}
-      <div style={{ marginBottom: 36 }}>
-        <h1 style={{ fontSize: 34, fontWeight: 800, color: "var(--foreground)", marginBottom: 10, lineHeight: 1.15 }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: "clamp(24px, 6vw, 34px)", fontWeight: 800, color: "var(--foreground)", marginBottom: 10, lineHeight: 1.15 }}>
           Shop smarter with AI.
         </h1>
-        <p style={{ fontSize: 15, color: "var(--muted-foreground-2)", maxWidth: 520 }}>
+        <p style={{ fontSize: 14, color: "var(--muted-foreground-2)", maxWidth: 520 }}>
           Personalized picks across phones, plans, and accessories — matched to what you actually need.
         </p>
       </div>
 
-      {/* Category tabs */}
-      <div className="flex items-center gap-2 mb-6">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => onCategoryChange(cat)}
-            style={{
-              padding: "8px 18px",
-              borderRadius: 50,
-              fontSize: 12.5,
-              fontWeight: 600,
-              borderWidth: 1.5,
-              borderStyle: "solid",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              background: category === cat ? "var(--primary)" : "transparent",
-              borderColor: category === cat ? "var(--primary)" : "var(--border)",
-              color: category === cat ? "#fff" : "var(--foreground)",
-            }}
-          >
-            {cat}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--muted-foreground)" }}>
-          {!loading && `${filtered.length} products`}
+      {/* Category tabs — horizontally scrollable so they never overflow the page on mobile */}
+      <div style={{ marginBottom: 20 }}>
+        <div
+          className="flex items-center gap-2"
+          style={{ overflowX: "auto", scrollbarWidth: "none", msOverflowStyle: "none", paddingBottom: 2 }}
+        >
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => onCategoryChange(cat)}
+              style={{
+                flexShrink: 0,
+                padding: "7px 16px",
+                borderRadius: 50,
+                fontSize: 12.5,
+                fontWeight: 600,
+                borderWidth: 1.5,
+                borderStyle: "solid",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                background: category === cat ? "var(--primary)" : "transparent",
+                borderColor: category === cat ? "var(--primary)" : "var(--border)",
+                color: category === cat ? "#fff" : "var(--foreground)",
+              }}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
+        {!loading && (
+          <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--muted-foreground)", textAlign: "right" }}>
+            {filtered.length} products
+          </div>
+        )}
       </div>
 
       {/* Error state */}
@@ -199,7 +212,9 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((product) => {
-            const inCart = isInCart(product.id);
+            // Never show "In Cart" state to logged-out users — their cart is empty
+            // anyway, but guard defensively so stale state never leaks into the UI.
+            const inCart = !!user && isInCart(product.id);
             return (
               <div
                 key={product.id}
@@ -240,23 +255,24 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                       {product.badge}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 10,
-                      right: 10,
-                      background: "rgba(0,0,0,0.75)",
-                      border: "1px solid rgba(var(--primary-rgb),0.4)",
-                      borderRadius: 8,
-                      padding: "3px 7px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <Sparkles size={9} style={{ color: "var(--primary)" }} />
-                    <span style={{ fontSize: 10, color: "var(--primary)", fontWeight: 700 }}>{product.aiScore}%</span>
-                  </div>
+                  {user && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        background: "var(--primary)",
+                        borderRadius: 6,
+                        padding: "3px 8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Sparkles size={9} style={{ color: "#fff" }} />
+                      <span style={{ fontSize: 10, color: "#fff", fontWeight: 700 }}>{product.aiScore}%</span>
+                    </div>
+                  )}
                   {!product.inStock && (
                     <div
                       style={{
@@ -302,11 +318,13 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                   </div>
 
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1">
-                      <Star size={11} style={{ color: "#FFD700", fill: "#FFD700" }} />
-                      <span style={{ fontSize: 11, color: "var(--foreground)", fontWeight: 600 }}>{product.stars}</span>
-                      <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>({product.reviews.toLocaleString()})</span>
-                    </div>
+                    {product.reviews > 0 ? (
+                      <div className="flex items-center gap-1">
+                        <Star size={11} style={{ color: "#FFD700", fill: "#FFD700" }} />
+                        <span style={{ fontSize: 11, color: "var(--foreground)", fontWeight: 600 }}>{product.stars}</span>
+                        <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>({product.reviews.toLocaleString()})</span>
+                      </div>
+                    ) : <span />}
                     {product.inStock && (
                       <div className="flex items-center gap-1">
                         <TrendingUp size={10} style={{ color: "#22C55E" }} />
@@ -325,7 +343,10 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                   <div className="flex gap-2">
                     <button
                       disabled={!product.inStock}
-                      onClick={() => (inCart ? removeItem(product.id) : addItem(product))}
+                      onClick={() => {
+                        if (!user) { setAuthOpen(true); return; }
+                        inCart ? removeItem(product.id) : addItem(product);
+                      }}
                       style={{
                         flex: 1,
                         padding: "9px",
@@ -347,7 +368,7 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                       {inCart ? <Check size={13} /> : <ShoppingCart size={13} />}
                       {inCart ? "In Cart" : product.inStock ? "Add to Cart" : "Out of Stock"}
                     </button>
-                    {isAiRecommended(product) && (
+                    {user && isAiRecommended(product) && (
                       <button
                         onClick={() => setWhyProduct(product)}
                         style={{
