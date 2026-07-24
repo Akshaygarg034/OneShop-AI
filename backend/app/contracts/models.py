@@ -53,8 +53,9 @@ class Intent(BaseModel):
     """Output of P1's intent step."""
     use_case: str = ""
     budget_monthly_max: Optional[float] = None
+    brand: Optional[str] = None          # explicit brand ask (e.g. "Apple") -> HARD filter
     priority_features: list[str] = Field(default_factory=list)
-    product_types: list[str] = Field(default_factory=list)
+    product_types: list[str] = Field(default_factory=list)  # explicit type ask -> HARD filter
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
     profile: PreferenceProfile = Field(default_factory=PreferenceProfile)

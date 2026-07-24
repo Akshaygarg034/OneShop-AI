@@ -8,6 +8,10 @@ REAL:  OpenAI extracts structured JSON matching the Intent contract. Any failure
        (missing/bad key, rate limit, network, malformed JSON) falls back to the
        mock parser automatically - flipping MOCK_MODE=false can never 500 the
        pipeline, it just prefers the real extraction when it's available.
+
+`history` is the CURRENT conversation thread's turns (passed in by the
+orchestrator), already loaded fresh from the persisted session - so multi-turn
+context survives restarts without bleeding across unrelated threads.
 """
 import logging
 import re
@@ -29,10 +33,32 @@ _FEATURE_WORDS = {
     "unlimited": ["unlimited", "lots of data", "stream", "streaming"],
 }
 
+# Map the words a customer uses to the canonical brand names in the catalog.
+_BRAND_WORDS = {
+    "Apple": ["apple", "iphone", "ios"],
+    "Samsung": ["samsung", "galaxy"],
+    "Google": ["google", "pixel"],
+    "Telekom": ["telekom", "magenta"],
+}
+_VALID_BRANDS = set(_BRAND_WORDS.keys())
+
+
+def _canonical_brand(raw: Optional[str]) -> Optional[str]:
+    """Normalise a free-text brand ('iPhone', 'galaxy') to a catalog brand."""
+    if not raw:
+        return None
+    low = raw.strip().lower()
+    for canon, words in _BRAND_WORDS.items():
+        if low == canon.lower() or any(w in low for w in words):
+            return canon
+    return None
+
+
 # Structured output schema - OpenAI fills this; profile is added by us afterwards.
 class _IntentOutput(BaseModel):
     use_case: str = ""
     budget_monthly_max: Optional[float] = None
+    brand: Optional[str] = None
     priority_features: list[str] = Field(default_factory=list)
     product_types: list[str] = Field(default_factory=list)
     clarification_needed: bool = False
@@ -44,34 +70,26 @@ Telekom phone/plan/accessory shop. Fill the response schema with:
 
   use_case: short paraphrase of what they want
   budget_monthly_max: EUR/month number if mentioned (e.g. "under 40" -> 40), else null
+  brand: the canonical brand IF the customer names a specific brand or model -
+         one of [Apple, Samsung, Google, Telekom] (map "iPhone"->Apple,
+         "Galaxy"->Samsung, "Pixel"->Google), else null
   priority_features: subset of [camera, eu_roaming, gaming, 5g, unlimited]
   product_types: subset of [phone, plan, accessory]
   clarification_needed: true ONLY if message is too vague to act on at all
   clarification_question: a single short question if clarification_needed, else null
 
 Rules:
-- clarification_needed=true only if no budget, no feature, no product type, fewer than ~6 words.
+- clarification_needed=true only if no budget, no brand, no feature, no product type, fewer than ~6 words.
+- Set brand ONLY when the customer explicitly names one; never guess a brand from features.
 - Never invent features/types not implied by the message.
 """
 
 
-def extract_intent(
-    message: str,
-    history: list[dict],
-    profile: PreferenceProfile,
-    session_id: str = "",
-) -> Intent:
-    """Extract intent from *message* in context of *history*.
-
-    Pass *session_id* to enable LangChain history management: the conversation
-    will be loaded as proper HumanMessage/AIMessage objects directly from the
-    Supabase-backed session store.  This is what keeps context alive even when
-    the server restarts mid-conversation.
-    """
+def extract_intent(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
     if MOCK_MODE:
         return _extract_mock(message, history, profile)
     try:
-        return _extract_real(message, history, profile, session_id)
+        return _extract_real(message, history, profile)
     except Exception as e:  # noqa - real extraction must never crash the pipeline
         logger.warning("OpenAI intent extraction failed (%s); falling back to mock parsing.", e)
         return _extract_mock(message, history, profile)
@@ -90,6 +108,12 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
 
     features = [feat for feat, words in _FEATURE_WORDS.items() if any(w in msg for w in words)]
 
+    brand = None
+    for canon, words in _BRAND_WORDS.items():
+        if any(w in msg for w in words):
+            brand = canon
+            break
+
     product_types = []
     if any(w in msg for w in ["phone", "device", "smartphone"]):
         product_types.append("phone")
@@ -99,11 +123,15 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
         product_types.append("accessory")
 
     # Clarification: too vague ("good and cheap" with nothing concrete)
-    clarify = not features and not product_types and budget is None and len(msg.split()) < 6
+    clarify = (
+        not features and not product_types and not brand
+        and budget is None and len(msg.split()) < 6
+    )
 
     return Intent(
         use_case=message,
         budget_monthly_max=budget,
+        brand=brand,
         priority_features=features,
         product_types=product_types,
         clarification_needed=clarify,
@@ -116,41 +144,27 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
     )
 
 
-def _extract_real(
-    message: str,
-    history: list[dict],
-    profile: PreferenceProfile,
-    session_id: str = "",
-) -> Intent:
+def _extract_real(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
     """Real extraction via openai's native Pydantic structured output.
 
     Uses client.beta.chat.completions.parse(response_format=_IntentOutput)
-    instead of fragile json.loads(), and loads multi-turn context from the
-    Supabase-backed SessionChatHistory (LangChain BaseChatMessageHistory) so
-    history survives server restarts and device switches.
+    instead of fragile json.loads(). `history` is the current thread's turns,
+    already loaded from the persisted session by the orchestrator.
     """
     from openai import OpenAI
 
-    from app.agents.history import session_history, to_lc_message
     from app.config import OPENAI_API_KEY, OPENAI_MODEL
 
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY not set")
 
-    # Load history as LangChain messages from Supabase, then convert to openai dicts
-    if session_id:
-        from langchain_core.messages import AIMessage
-        lc_past = session_history(session_id).messages[-6:]
-        past_dicts = [
-            {"role": "assistant" if isinstance(m, AIMessage) else "user", "content": m.content}
-            for m in lc_past
-        ]
-    else:
-        past_dicts = history[-6:]
-
+    past = [
+        {"role": t.get("role", "user"), "content": t.get("content", "")}
+        for t in (history[-6:] if history else [])
+    ]
     messages = (
         [{"role": "system", "content": _SYSTEM_PROMPT}]
-        + past_dicts
+        + past
         + [{"role": "user", "content": message}]
     )
 
@@ -166,10 +180,12 @@ def _extract_real(
 
     valid_features = set(_FEATURE_WORDS.keys())
     valid_types = {"phone", "plan", "accessory"}
+    brand = _canonical_brand(result.brand)
 
     return Intent(
         use_case=result.use_case or message,
         budget_monthly_max=result.budget_monthly_max or profile.budget_monthly_max,
+        brand=brand,
         priority_features=[f for f in result.priority_features if f in valid_features],
         product_types=[t for t in result.product_types if t in valid_types],
         clarification_needed=result.clarification_needed,

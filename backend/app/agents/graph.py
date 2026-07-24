@@ -27,11 +27,10 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
     conv_history = session.get_conversation(conversation_id)
 
     # 1. Understand + learn (P1)
-    # Pass session_id so intent extraction loads multi-turn history from Supabase
-    # as proper LangChain HumanMessage/AIMessage objects - this is what keeps
-    # context alive across server restarts (kill uvicorn, restart it: the
-    # conversation is still there because it's persisted in Supabase).
-    intent = extract_intent(message, session.history, session.profile, session.session_id)
+    # Pass THIS thread's history (loaded fresh from the persisted session) so
+    # multi-turn context survives restarts without bleeding across unrelated
+    # conversation threads.
+    intent = extract_intent(message, conv_history, session.profile)
     session.profile = update_profile(session.profile, message, intent)
     intent.profile = session.profile
 
@@ -90,11 +89,15 @@ def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
 
 def _compose_reply(recs, eligible, intent) -> str:
     if not eligible:
+        # Brand-aware, honest refusal - the deterministic engine found nothing
+        # offerable, and we say so rather than silently swapping in something else.
+        subject = f"{intent.brand} option" if intent.brand else "option"
+        budget = f" under €{int(intent.budget_monthly_max)}/mo" if intent.budget_monthly_max else ""
         return (
-            "I couldn't find an in-stock option that fits those exact requirements. "
-            "Want me to relax the budget a little, or show the closest alternatives?"
+            f"I couldn't find an in-stock {subject}{budget} that fits. "
+            "Want me to relax the budget, or show the closest alternatives?"
         )
     if not recs:
         return "I found some options but need a bit more detail to recommend the best one."
-    top = recs[0]
-    return f"Here are my top picks for you. My #1 is {top.why}"
+    lead = "Here's my top pick" if len(recs) == 1 else "Here are my top picks"
+    return f"{lead} — {recs[0].why}"
