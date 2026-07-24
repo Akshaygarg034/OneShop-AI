@@ -1,8 +1,11 @@
 # --- Core (needed to run in MOCK mode - install these first) ---
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
-pydantic==2.9.2
-email-validator==2.1.0
+# supabase's realtime/postgrest need pydantic>=2.11.7 - 2.9.2 (the original mock-mode
+# pin) conflicts once supabase is in the same install. 2.13.4 is verified working
+# with fastapi 0.115.0 + qdrant-client + langchain-qdrant + supabase together.
+pydantic==2.13.4
+email-validator==2.1.0.post1   # 2.1.0 was yanked from PyPI (missing python_requires fix)
 python-dotenv==1.0.1
 
 # --- Real mode: RAG / semantic retrieval (P2) ---
