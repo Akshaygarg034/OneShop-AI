@@ -1,0 +1,152 @@
+[
+  {
+    "id": "phone_pixel8",
+    "type": "phone",
+    "category": "phones",
+    "price_monthly": 15,
+    "price_onetime": 0,
+    "stock": 12,
+    "in_stock": true,
+    "compatible_plans": ["plan_m", "plan_l"]
+  },
+  {
+    "id": "phone_s24",
+    "type": "phone",
+    "category": "phones",
+    "price_monthly": 18,
+    "price_onetime": 0,
+    "stock": 5,
+    "in_stock": true,
+    "compatible_plans": ["plan_m", "plan_l"]
+  },
+  {
+    "id": "phone_iphone16pro",
+    "type": "phone",
+    "category": "phones",
+    "price_monthly": 40,
+    "price_onetime": 0,
+    "stock": 0,
+    "in_stock": false,
+    "compatible_plans": ["plan_l"]
+  },
+  {
+    "id": "phone_a55",
+    "type": "phone",
+    "category": "phones",
+    "price_monthly": 8,
+    "price_onetime": 0,
+    "stock": 30,
+    "in_stock": true,
+    "compatible_plans": ["plan_s", "plan_m"]
+  },
+  {
+    "id": "phone_pixel9",
+    "type": "phone",
+    "category": "phones",
+    "price_monthly": 22,
+    "price_onetime": 0,
+    "stock": 8,
+    "in_stock": true,
+    "compatible_plans": ["plan_m", "plan_l"]
+  },
+  {
+    "id": "phone_iphone15",
+    "type": "phone",
+    "category": "phones",
+    "price_monthly": 32,
+    "price_onetime": 0,
+    "stock": 14,
+    "in_stock": true,
+    "compatible_plans": ["plan_m", "plan_l"]
+  },
+  {
+    "id": "plan_s",
+    "type": "plan",
+    "category": "plans",
+    "price_monthly": 20,
+    "price_onetime": 0,
+    "stock": 999,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "plan_m",
+    "type": "plan",
+    "category": "plans",
+    "price_monthly": 30,
+    "price_onetime": 0,
+    "stock": 999,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "plan_l",
+    "type": "plan",
+    "category": "plans",
+    "price_monthly": 45,
+    "price_onetime": 0,
+    "stock": 999,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "plan_young",
+    "type": "plan",
+    "category": "plans",
+    "price_monthly": 25,
+    "price_onetime": 0,
+    "stock": 999,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "accessory_case",
+    "type": "accessory",
+    "category": "accessories",
+    "price_monthly": 0,
+    "price_onetime": 15,
+    "stock": 200,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "accessory_buds",
+    "type": "accessory",
+    "category": "accessories",
+    "price_monthly": 0,
+    "price_onetime": 49,
+    "stock": 80,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "accessory_charger",
+    "type": "accessory",
+    "category": "accessories",
+    "price_monthly": 0,
+    "price_onetime": 25,
+    "stock": 150,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "accessory_screen_protector",
+    "type": "accessory",
+    "category": "accessories",
+    "price_monthly": 0,
+    "price_onetime": 12,
+    "stock": 300,
+    "in_stock": true,
+    "compatible_plans": []
+  },
+  {
+    "id": "bundle_home_mobile",
+    "type": "bundle",
+    "category": "bundles",
+    "price_monthly": 55,
+    "price_onetime": 0,
+    "stock": 999,
+    "in_stock": true,
+    "compatible_plans": []
+  }
+]
