@@ -61,6 +61,7 @@ class _IntentOutput(BaseModel):
     brand: Optional[str] = None
     priority_features: list[str] = Field(default_factory=list)
     product_types: list[str] = Field(default_factory=list)
+    is_shopping_related: bool = True
     clarification_needed: bool = False
     clarification_question: Optional[str] = None
 
@@ -75,6 +76,9 @@ Telekom phone/plan/accessory shop. Fill the response schema with:
          "Galaxy"->Samsung, "Pixel"->Google), else null
   priority_features: subset of [camera, eu_roaming, gaming, 5g, unlimited]
   product_types: subset of [phone, plan, accessory]
+  is_shopping_related: false when the customer is asking about something outside
+         shopping for Telekom phones, plans, bundles, or accessories. In that
+         case, do not extract a product preference.
   clarification_needed: true ONLY if message is too vague to act on at all
   clarification_question: a single short question if clarification_needed, else null
 
@@ -82,7 +86,44 @@ Rules:
 - clarification_needed=true only if no budget, no brand, no feature, no product type, fewer than ~6 words.
 - Set brand ONLY when the customer explicitly names one; never guess a brand from features.
 - Never invent features/types not implied by the message.
+- General knowledge, entertainment, homework, weather, coding, and other
+  unrelated requests are not shopping-related.
 """
+
+_SHOPPING_WORDS = {
+    "accessories", "accessory", "apple", "budget", "buy", "camera", "case",
+    "charger", "data plan", "earbuds", "galaxy", "google", "iphone", "magenta",
+    "gaming", "phone", "pixel", "plan", "price", "roaming", "samsung", "sim",
+    "smartphone", "streaming", "tariff", "telekom", "travel", "unlimited", "5g",
+}
+_NON_SHOPPING_PATTERNS = (
+    r"\b(tell|make|write)\b.*\b(joke|poem|story|recipe)\b",
+    r"\b(weather|forecast|capital of|president|homework|math problem|python code)\b",
+    r"\bwho (is|was|invented)\b",
+)
+
+
+def _is_shopping_related(message: str, history: list[dict]) -> bool:
+    """Keep unrelated requests out of the product retrieval pipeline.
+
+    A short follow-up such as "under 30" is accepted only when this conversation
+    already contains a shopping request. Explicitly unrelated questions always
+    remain out of scope, even in a shopping conversation.
+    """
+    msg = message.lower()
+    if any(re.search(pattern, msg) for pattern in _NON_SHOPPING_PATTERNS):
+        return False
+    if any(word in msg for word in _SHOPPING_WORDS):
+        return True
+    # Keep genuinely vague messages in the existing clarification flow instead
+    # of treating them as an unrelated question.
+    if len(msg.split()) <= 3:
+        return True
+    has_shopping_context = any(
+        turn.get("role") == "user" and any(word in turn.get("content", "").lower() for word in _SHOPPING_WORDS)
+        for turn in history
+    )
+    return has_shopping_context and bool(re.search(r"\b(under|below|max|cheaper|more|less|that|this|it|one)\b|\d", msg))
 
 
 def extract_intent(message: str, history: list[dict], profile: PreferenceProfile) -> Intent:
@@ -134,6 +175,7 @@ def _extract_mock(message: str, history: list[dict], profile: PreferenceProfile)
         brand=brand,
         priority_features=features,
         product_types=product_types,
+        is_shopping_related=_is_shopping_related(message, history),
         clarification_needed=clarify,
         clarification_question=(
             "Happy to help! Is this mainly for calls and messaging, or do you also want "
@@ -188,6 +230,7 @@ def _extract_real(message: str, history: list[dict], profile: PreferenceProfile)
         brand=brand,
         priority_features=[f for f in result.priority_features if f in valid_features],
         product_types=[t for t in result.product_types if t in valid_types],
+        is_shopping_related=result.is_shopping_related and _is_shopping_related(message, history),
         clarification_needed=result.clarification_needed,
         clarification_question=result.clarification_question,
         profile=profile,

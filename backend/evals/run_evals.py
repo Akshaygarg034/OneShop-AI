@@ -159,6 +159,13 @@ def t_clarify():
     assert not r.recommendations and r.reply_text, "expected a clarification question"
 
 
+@case("CONVERSATION", "politely declines an unrelated question")
+def t_decline_unrelated():
+    r = _run("What is the capital of France?")
+    assert not r.recommendations, "unrelated questions must not return products"
+    assert "can’t help with that question" in r.reply_text, "expected a polite scope refusal"
+
+
 @case("CONVERSATION", "receipts are populated")
 def t_receipts():
     r = _run("phone with a camera")
