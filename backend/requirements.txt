@@ -1,40 +1,25 @@
-# --- Core (needed to run in MOCK mode - install these first) ---
+# Core Dependencies
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
-# supabase's realtime/postgrest need pydantic>=2.11.7 - 2.9.2 (the original mock-mode
-# pin) conflicts once supabase is in the same install. 2.13.4 is verified working
-# with fastapi 0.115.0 + qdrant-client + langchain-qdrant + supabase together.
 pydantic==2.13.4
-email-validator==2.1.0.post1   # 2.1.0 was yanked from PyPI (missing python_requires fix)
 python-dotenv==1.0.1
+email-validator==2.1.0.post1 
+numpy>=2.0 
 
-# --- Real mode: RAG / semantic retrieval (P2) ---
-# These pull langchain-core 1.x. Verified working set:
-qdrant-client==1.18.0
-langchain-qdrant==1.1.0
-# langchain-huggingface==1.2.2
-# sentence-transformers==5.6.1
-numpy>=2.0            # avoid the numpy/pandas ABI "dtype size changed" error
-
-# --- Real mode: OpenAI generation - intent extraction + "why" explanations ---
-# langchain-openai is NOT used here: its 0.3.x series needs langchain-core<1.0.0
-# (conflicts with qdrant/huggingface >=1.0.0) and its 1.x series needs openai>=1.109
-# (conflicts with the pinned 1.54.4 below).  Instead we use:
-#   - openai's native Pydantic structured output (client.beta.chat.completions.parse)
-#   - langchain-core message types (already in env via RAG stack) for history
-# openai==1.54.4
+# AI & OpenAI
 openai>=2.45.0
 
-# --- Real mode: session persistence (P4) ---
-# 2.7.4's client constructor rejected any non-JWT key, so it raised
-# "Invalid API key" for the new sb_secret_/sb_publishable_ keys before ever
-# hitting the network. 2.31.0 accepts the new key format.
-# We use the REST API (not psycopg2) - the direct db.<ref>.supabase.co host is
-# IPv6-only and usually won't resolve; the REST endpoint always works over HTTPS.
-supabase==2.31.0
-websockets==15.0.1   # supabase's realtime needs websockets.asyncio (>=13) but <16
+# Vector Database (Qdrant)
+qdrant-client==1.18.0
+langchain-qdrant==1.1.0
 
-# --- Testing (P4) ---
+# Supabase
+supabase==2.31.0
+websockets==15.0.1
+
+# Testing
 pytest==8.3.3
 httpx==0.27.2
+
+# Optional
 langchain-openai==1.4.1
