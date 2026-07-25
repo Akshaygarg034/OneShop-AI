@@ -1,0 +1,247 @@
+<mxfile host="app.diagrams.net" agent="Claude" version="24.0.0">
+  <diagram id="ssa-arch" name="Smart Shopping Assistant — Architecture">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== TITLE & SUBTITLE ===================== -->
+        <mxCell id="title" value="Telekom Smart Shopping Assistant — AI-Powered Omnichannel Consumer Intelligence Engine" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#E20074;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1620" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Core principle:  AI generates &#8594; Deterministic rules decide.  The LLM converses, ranks &amp; explains; a deterministic engine decides what is actually offerable, so it never hallucinates a product." style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#4A5560;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="1620" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER BANDS (Backgrounds) ===================== -->
+        <mxCell id="band1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF2FB;strokeColor=#B4C9E8;verticalAlign=top;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1620" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="band1lbl" value="1 · CHANNELS  (Omnichannel — one shared session across devices)" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#2B5A9E;" vertex="1" parent="1">
+          <mxGeometry x="55" y="96" width="600" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E9F7EF;strokeColor=#A9D9BE;verticalAlign=top;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="230" width="1620" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="band2lbl" value="2 · FRONTEND  —  React + Vite + TypeScript + shadcn/ui  (OneShop Web &amp; OneApp mobile view share responsive codebase)" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#2E7D4F;" vertex="1" parent="1">
+          <mxGeometry x="55" y="236" width="1000" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3EEFB;strokeColor=#CBB6E8;verticalAlign=top;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="430" width="1620" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="band3lbl" value="3 · API GATEWAY  —  FastAPI (Python)  ·  CORS  ·  /health" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#6A3FA0;" vertex="1" parent="1">
+          <mxGeometry x="55" y="436" width="700" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDEBF4;strokeColor=#F3AFD3;verticalAlign=top;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="570" width="1160" height="360" as="geometry" />
+        </mxCell>
+        <mxCell id="band4lbl" value="4 · MULTI-AGENT ORCHESTRATOR  —  agents/graph.py :: run_pipeline()   (intent &#8594; profile &#8594; retrieve &#8594; eligibility &#8594; recommend &#8594; guardrail &#8594; receipts)" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#B01C6E;" vertex="1" parent="1">
+          <mxGeometry x="55" y="576" width="1100" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band5" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF6E6;strokeColor=#F0D08A;verticalAlign=top;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="570" width="440" height="360" as="geometry" />
+        </mxCell>
+        <mxCell id="band5lbl" value="EXTERNAL AI &amp; ML SERVICES" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#9A6B00;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="576" width="360" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="band6" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF1F4;strokeColor=#C2CBD4;verticalAlign=top;arcSize=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="950" width="1620" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="band6lbl" value="5 · DATA &amp; PERSISTENCE  (pluggable: works fully offline in mock mode, upgrades to cloud with zero code change)" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#4A5560;" vertex="1" parent="1">
+          <mxGeometry x="55" y="956" width="1000" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 1: CHANNELS ===================== -->
+        <mxCell id="customer" value="Customer" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fontSize=12;fontStyle=1;fillColor=#DAE8FC;strokeColor=#2B5A9E;" vertex="1" parent="1">
+          <mxGeometry x="90" y="120" width="40" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="oneshop" value="OneShop (Web)&#10;desktop browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#2B5A9E;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="120" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="oneapp" value="OneApp (Mobile)&#10;phone web view" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#2B5A9E;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="450" y="120" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sessionnote" value="Shared Identity &amp; Session Management&#10;• session.ts: guest session_id stored in localStorage&#10;• ?session=... URL override merges cart + browsing history across devices (web &#8596; mobile)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#F5F9FF;strokeColor=#2B5A9E;fontSize=11;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="680" y="120" width="940" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 2: FRONTEND (Aligned to API columns) ===================== -->
+        <mxCell id="fe_chat" value="FloatingChat&#10;conversational UI&#10;+ 🎤 Voice (Web Speech API)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F5E3;strokeColor=#2E7D4F;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_cart" value="SmartCart view&#10;cart, bundle suggestions,&#10;free-shipping nudge, checkout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F5E3;strokeColor=#2E7D4F;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="360" y="280" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_discovery" value="Discovery view&#10;personalized catalog browse&#10;(ranked cards + &quot;Why this?&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F5E3;strokeColor=#2E7D4F;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="280" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_auth" value="AuthModal&#10;register / login&#10;guest cart merges on sign-in" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F5E3;strokeColor=#2E7D4F;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="920" y="280" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_ctx" value="Context Providers &amp; API Fetch Layer&#10;AuthContext · CartContext · ThemeProvider · api/session.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F5E3;strokeColor=#2E7D4F;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="280" width="420" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 3: API GATEWAY ===================== -->
+        <mxCell id="api_chat" value="POST /chat&#10;/chat/history  ·  /conversations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5F5;strokeColor=#6A3FA0;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="465" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api_cart" value="/cart  add · remove · set&#10;/cart/summary · /suggestions · /checkout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5F5;strokeColor=#6A3FA0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="360" y="465" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api_catalog" value="GET /catalog  (RankedProduct)&#10;/catalog/{id}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5F5;strokeColor=#6A3FA0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="465" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api_auth" value="/auth  register · login · me&#10;hmac-signed tokens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5F5;strokeColor=#6A3FA0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="920" y="465" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api_profile" value="/profile&#10;exposes PreferenceProfile" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5F5;strokeColor=#6A3FA0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="465" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api_mode" value="MOCK_MODE Switch&#10;true: 0 keys / offline safe&#10;false: real AI, graceful degrade" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#FAF5FF;strokeColor=#6A3FA0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="465" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 4: MULTI-AGENT ORCHESTRATOR ===================== -->
+        <mxCell id="a1" value="① Intent Agent&#10;extract_intent()&#10;LLM structured output (or regex mock)&#10;+ greeting &amp; scope guard&#10;+ clarify-when-vague" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CBE0;strokeColor=#B01C6E;fontSize=11;fontStyle=1;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="70" y="615" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="② Profile Agent&#10;update_profile()&#10;learns budget · brands · features&#10;· rejected items (continuous learning,&#10;user correctable)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CBE0;strokeColor=#B01C6E;fontSize=11;fontStyle=1;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="350" y="615" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="③ Retrieval Agent&#10;retrieve()  RAG&#10;semantic top-k (Qdrant) OR&#10;keyword mock — finds candidates&#10;by intent &amp; meaning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CBE0;strokeColor=#B01C6E;fontSize=11;fontStyle=1;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="630" y="615" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" value="④ Eligibility Engine  ★ SOURCE OF TRUTH&#10;filter_eligible()  —  pure, deterministic&#10;HARD rules: in-stock · within budget&#10;· brand match · type match&#10;NO LLM, ever — 0% hallucination risk" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADBD8;strokeColor=#C0392B;fontSize=11;fontStyle=1;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="910" y="615" width="260" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a5" value="⑤ Recommender + Explainer + Next-Best-Action  (recommender.py)&#10;rank_products(): 4 signals — relevance · preference · budget · popularity, blended with cold-start &#8594; warm-start weights  ·  diversifies to top-3&#10;&quot;Why this for you?&quot;  (LLM sentence or deterministic template, grounded in real signals)  ·  Next-Best-Action nudges (bundle / accessory / free-shipping)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CBE0;strokeColor=#B01C6E;fontSize=11;fontStyle=1;align=left;spacingLeft=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="70" y="745" width="1100" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a6" value="⑥ GUARDRAIL — recommendations &#8838; eligible ids  (belt &amp; braces: enforced in recommender AND graph.py)      +      ⑦ Receipts — retrieved_ids · rules_fired · shown_ids  (auditable decision log)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE8D5;strokeColor=#C0392B;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="70" y="840" width="1100" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== EXTERNAL AI SERVICES ===================== -->
+        <mxCell id="openai" value="OpenAI API&#10;• gpt-4o-mini&#10;  intent extraction (structured output)&#10;  &quot;why this?&quot; explanations &amp; warm greetings&#10;• text-embedding-3-small (256-dim)&#10;  RAG query &amp; catalog embeddings&#10;&#10;Every call falls back to mock/template&#10;on any failure — app never 500s." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDEBC8;strokeColor=#9A6B00;fontSize=11;align=left;spacingLeft=12;spacingTop=6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="615" width="380" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="voicebox" value="🎤 Voice Interface — Browser Web Speech API&#10;Client-side speech-to-text directly populates conversational chat input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDEBC8;strokeColor=#9A6B00;fontSize=11;align=left;spacingLeft=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="815" width="380" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 5: DATA & PERSISTENCE ===================== -->
+        <mxCell id="d_session" value="Session Store&#10;conversations · profile · cart&#10;in-memory OR Supabase&#10;(stateless, horizontally scalable)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#DDE3E9;strokeColor=#4A5560;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="980" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="d_qdrant" value="Qdrant Vector DB&#10;semantic catalog index&#10;(256-dim embeddings)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#DDE3E9;strokeColor=#4A5560;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="630" y="980" width="250" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="d_catalog" value="Catalog Data&#10;15 products (phones · plans · bundles)&#10;JSON OR Supabase Postgres&#10;— live prices &amp; inventory stock" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#DDE3E9;strokeColor=#4A5560;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="910" y="980" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="d_users" value="Users Store&#10;credentials (hashed)&#10;in-memory OR Supabase&#10;guest &#8594; user_id merge" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#DDE3E9;strokeColor=#4A5560;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="980" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="d_evals" value="Eval Harness  (evals/run_evals.py)&#10;TRUST · CONSTRAINTS · CONVERSATION · PERSONALIZATION&#10;CART · AUTH · RAG — automated proof of correctness &amp; CI gate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F8F5;strokeColor=#148F77;fontSize=11;fontStyle=1;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="995" width="230" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== EDGE CONNECTIONS ===================== -->
+        <!-- Channels to Frontend -->
+        <mxCell id="e_cust_shop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#2B5A9E;strokeWidth=1.5;" edge="1" parent="1" source="customer" target="oneshop"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cust_app" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#2B5A9E;strokeWidth=1.5;" edge="1" parent="1" source="customer" target="oneapp"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_shop_fe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#2E7D4F;strokeWidth=1.5;" edge="1" parent="1" source="oneshop" target="fe_chat"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_app_fe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#2E7D4F;strokeWidth=1.5;" edge="1" parent="1" source="oneapp" target="fe_chat"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Vertical Frontend to API Gateway -->
+        <mxCell id="e_fe_api" value="HTTPS / JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#6A3FA0;fontSize=10;fontStyle=1;strokeWidth=1.5;" edge="1" parent="1" source="fe_chat" target="api_chat"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_fecart_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#6A3FA0;strokeWidth=1.5;" edge="1" parent="1" source="fe_cart" target="api_cart"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_fedisc_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#6A3FA0;strokeWidth=1.5;" edge="1" parent="1" source="fe_discovery" target="api_catalog"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_feauth_api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#6A3FA0;strokeWidth=1.5;" edge="1" parent="1" source="fe_auth" target="api_auth"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Orchestrator Horizontal Pipeline -->
+        <mxCell id="e_api_a1" value="run_pipeline()" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B01C6E;fontSize=10;fontStyle=1;strokeWidth=2;" edge="1" parent="1" source="api_chat" target="a1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_a1_a2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B01C6E;strokeWidth=2;" edge="1" parent="1" source="a1" target="a2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_a2_a3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B01C6E;strokeWidth=2;" edge="1" parent="1" source="a2" target="a3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_a3_a4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B01C6E;strokeWidth=2;" edge="1" parent="1" source="a3" target="a4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_a4_a5" value="eligible items only" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#C0392B;fontSize=10;fontStyle=1;strokeWidth=2;exitX=0.75;exitY=1;entryX=0.8;entryY=0;" edge="1" parent="1" source="a4" target="a5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_a5_a6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B01C6E;strokeWidth=2;" edge="1" parent="1" source="a5" target="a6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        
+        <!-- Outer Return Loop from Guardrail back to API -->
+        <mxCell id="e_a6_api" value="ChatResponse (recs · nba · cart · receipts)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#B01C6E;fontSize=10;fontStyle=1;dashed=1;strokeWidth=1.5;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="a6" target="api_chat">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="50" y="870" />
+              <mxPoint x="50" y="495" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Clean Overhead LLM Corridors -->
+        <mxCell id="e_a1_llm" value="LLM calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#9A6B00;fontSize=10;fontStyle=1;exitX=0.5;exitY=0;entryX=0.15;entryY=0;" edge="1" parent="1" source="a1" target="openai">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="195" y="560" />
+              <mxPoint x="1307" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_a3_llm" value="embeddings" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#9A6B00;fontSize=10;fontStyle=1;exitX=0.5;exitY=0;entryX=0.35;entryY=0;" edge="1" parent="1" source="a3" target="openai">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="755" y="560" />
+              <mxPoint x="1383" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_a5_llm" value="explanations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#9A6B00;fontSize=10;fontStyle=1;exitX=1;exitY=0.5;entryX=0;entryY=0.7;" edge="1" parent="1" source="a5" target="openai"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Vertical Data Drops -->
+        <mxCell id="e_a3_qdrant" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#4A5560;strokeWidth=1.5;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="a3" target="d_qdrant"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_a4_catalog" value="live stock &amp; price" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#4A5560;fontSize=10;strokeWidth=1.5;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="a4" target="d_catalog"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cart_session" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#4A5560;strokeWidth=1.5;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" edge="1" parent="1" source="api_cart" target="d_session">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="555" />
+              <mxPoint x="260" y="555" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_chat_session" value="save state" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#4A5560;fontSize=10;strokeWidth=1.5;exitX=0.15;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="a6" target="d_session"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_auth_users" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#4A5560;strokeWidth=1.5;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="api_auth" target="d_users">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="555" />
+              <mxPoint x="1290" y="555" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_catalog_catalog" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#4A5560;strokeWidth=1.5;exitX=0.75;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="api_catalog" target="d_catalog">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="555" />
+              <mxPoint x="975" y="555" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===================== LEGEND BAND ===================== -->
+        <mxCell id="legend" value="Problem-Statement Capability Coverage &amp; Verification" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B01C6E;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#B01C6E;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1150" width="1620" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="legend2" value="✅ Personalized Discovery (Profile+Ranking)   ✅ Conversational Assistant (Chat)   ✅ Next Best Action (Nudges)   ✅ Smart Cart &amp; Checkout   ✅ Omnichannel (Shared Session)   |   Bonus: ✅ Multi-Agent Graph   ✅ Real-Time Deterministic Eligibility   ✅ Explainable AI (Why + Signals + Receipts)   ✅ Continuous Learning   ✅ Voice Input" style="text;html=1;align=left;fontSize=11;fontColor=#333333;spacingLeft=14;" vertex="1" parent="1">
+          <mxGeometry x="55" y="1172" width="1590" height="16" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
