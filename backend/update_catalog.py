@@ -1,114 +1,69 @@
-"""Sync ``data/catalog.json`` to Supabase and Qdrant.
+"""Sync data/catalog.json to Supabase and Qdrant.
 
-``catalog.json`` is the only input. The legacy ``products_postgres.json`` and
-``products_vector.json`` files are deliberately ignored by this command.
-
-Every product is upserted to Supabase's ``catalog_products`` table. The same
-catalog is then embedded into Qdrant, with ``image_url`` removed before any
-vector document is created.
+Usage:
+    python update_catalog.py            # upsert Supabase + reindex Qdrant
+    python update_catalog.py --postgres-only
+    python update_catalog.py --dry-run
 """
 from __future__ import annotations
 
 import argparse
-import json
+import asyncio
 import logging
-import os
 import sys
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+from app.clients import close_clients, init_clients, supabase_client
+from app.config import get_settings
+from app.contracts.models import Product
+from app.retrieval.catalog import load_catalog_file
+from app.retrieval.ingestion import ingest_catalog
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger("update_catalog")
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-CATALOG_JSON = os.path.join(_HERE, "data", "catalog.json")
 
-
-def load_catalog() -> list[dict]:
-    """Load and validate the sole catalog source file."""
-    with open(CATALOG_JSON, encoding="utf-8") as file:
-        products = json.load(file)
-    if not isinstance(products, list):
-        raise ValueError("data/catalog.json must contain a JSON array")
-
-    ids = [product.get("id") for product in products if isinstance(product, dict)]
-    if len(ids) != len(products) or not all(isinstance(product_id, str) and product_id for product_id in ids):
-        raise ValueError("Every catalog product must be an object with a non-empty string 'id'.")
-    duplicates = sorted({product_id for product_id in ids if ids.count(product_id) > 1})
+def validate(rows: list[dict]) -> list[Product]:
+    ids = [row.get("id") for row in rows]
+    duplicates = sorted({i for i in ids if ids.count(i) > 1})
     if duplicates:
-        raise ValueError(f"Duplicate product ids in catalog.json: {duplicates}")
-    return products
+        raise ValueError(f"duplicate product ids: {duplicates}")
+    return [Product(**row) for row in rows]
 
 
-def push_to_supabase(products: list[dict]) -> None:
-    """Upsert the complete catalog, including display-only image_url values."""
+async def run(postgres_only: bool, dry_run: bool) -> int:
+    rows = load_catalog_file()
+    products = validate(rows)
+    logger.info("catalog.json: %d valid products", len(products))
+    if dry_run:
+        return 0
+
+    await init_clients()
     try:
-        from dotenv import load_dotenv
-        from supabase import create_client
-    except ImportError as error:
-        raise RuntimeError("Install backend requirements before synchronizing the catalog.") from error
+        from app.bootstrap import ensure_schema, ensure_vector_collections
 
-    load_dotenv(os.path.join(_HERE, ".env"))
-    url = os.getenv("SUPABASE_URL", "")
-    key = os.getenv("SUPABASE_KEY", "")
-    table = os.getenv("CATALOG_TABLE", "catalog_products")
-    if not (url and key):
-        raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in backend/.env.")
-
-    logger.info("Upserting %d products into Supabase table '%s'...", len(products), table)
-    try:
-        create_client(url, key).table(table).upsert(products, on_conflict="id").execute()
-    except Exception as error:
-        raise RuntimeError(f"Supabase upsert failed: {error}") from error
-
-
-def rebuild_qdrant() -> None:
-    """Rebuild Qdrant from catalog.json; ingestion strips image_url."""
-    try:
-        from app.rag.ingestion import ingest
-
-        ingest(data_file=CATALOG_JSON)
-    except Exception as error:
-        raise RuntimeError(f"Qdrant indexing failed: {error}") from error
+        settings = get_settings()
+        await ensure_schema()
+        await ensure_vector_collections()
+        await supabase_client().table(settings.catalog_table).upsert(rows, on_conflict="id").execute()
+        logger.info("Supabase: upserted %d products into '%s'", len(rows), settings.catalog_table)
+        if not postgres_only:
+            await ingest_catalog(products)
+    finally:
+        await close_clients()
+    logger.info("Catalog sync complete.")
+    return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Sync catalog.json to Supabase and Qdrant.")
-    parser.add_argument(
-        "--postgres-only",
-        action="store_true",
-        help="Upsert catalog.json to Supabase without rebuilding Qdrant.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Validate catalog.json and report actions without writing to either database.",
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--postgres-only", action="store_true", help="skip the Qdrant reindex")
+    parser.add_argument("--dry-run", action="store_true", help="validate catalog.json only")
     args = parser.parse_args()
-
     try:
-        products = load_catalog()
-    except (OSError, ValueError, json.JSONDecodeError) as error:
-        logger.error("Could not load catalog.json: %s", error)
+        return asyncio.run(run(args.postgres_only, args.dry_run))
+    except Exception:
+        logger.exception("catalog sync failed")
         return 1
-
-    if args.dry_run:
-        logger.info("Dry run: would upsert %d products to Supabase%s.", len(products),
-                    "" if args.postgres_only else " and rebuild Qdrant without image_url")
-        return 0
-
-    try:
-        push_to_supabase(products)
-        if not args.postgres_only:
-            rebuild_qdrant()
-    except RuntimeError as error:
-        logger.error("Catalog sync failed: %s", error)
-        return 1
-
-    logger.info("Catalog sync complete.")
-    return 0
 
 
 if __name__ == "__main__":

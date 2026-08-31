@@ -1,326 +1,2337 @@
 [
-  {
-    "id": "phone_pixel8",
-    "type": "phone",
-    "name": "Google Pixel 8",
-    "brand": "Google",
-    "description": "Flagship camera phone with AI photo tools and clean Android.",
-    "price_monthly": 15,
-    "price_onetime": 0,
-    "category": "phones",
-    "features": [
-      "camera",
-      "5g",
-      "eu_roaming",
-      "android"
-    ],
-    "compatible_plans": [
-      "plan_m",
-      "plan_l"
-    ],
-    "stock": 12,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.75
+ {
+  "id": "phone-iphone-15-128",
+  "type": "phone",
+  "name": "iPhone 15 128GB",
+  "brand": "Apple",
+  "description": "The iPhone 15 with A16 Bionic chip, 48MP main camera with 2x optical-quality zoom and Dynamic Island. All-day battery life, USB-C and crash detection make it the ideal everyday flagship.",
+  "category": "smartphones",
+  "price_onetime": 849.0,
+  "price_monthly": 0,
+  "original_price": 849.0,
+  "discount_pct": 0,
+  "rating": 4.7,
+  "review_count": 18432,
+  "colors": [
+   "black",
+   "blue",
+   "pink",
+   "green",
+   "yellow"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 42,
+  "in_stock": true,
+  "popularity": 0.96,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "face_id",
+   "eu_roaming",
+   "usb_c"
+  ],
+  "compatible_plans": [
+   "plan_m",
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 6,
+   "storage_gb": 128,
+   "display_inch": 6.1,
+   "display_type": "oled",
+   "refresh_rate_hz": 60,
+   "battery_mah": 3349,
+   "main_camera_mp": 48,
+   "front_camera_mp": 12,
+   "chipset": "A16 Bionic",
+   "os": "ios",
+   "sim": "dual_esim",
+   "connectivity": "5g",
+   "weight_g": 171,
+   "fast_charging_w": 20
   },
-  {
-    "id": "phone_s24",
-    "type": "phone",
-    "name": "Samsung Galaxy S24",
-    "brand": "Samsung",
-    "description": "Powerful Android phone with a bright display and strong camera.",
-    "price_monthly": 18,
-    "price_onetime": 0,
-    "category": "phones",
-    "features": [
-      "camera",
-      "5g",
-      "eu_roaming",
-      "android",
-      "gaming"
-    ],
-    "compatible_plans": [
-      "plan_m",
-      "plan_l"
-    ],
-    "stock": 5,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.82
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-iphone-15-256",
+  "type": "phone",
+  "name": "iPhone 15 256GB",
+  "brand": "Apple",
+  "description": "iPhone 15 with 256GB storage for large photo and video libraries. A16 Bionic performance, 48MP camera, Dynamic Island and USB-C in a durable aluminium design with Ceramic Shield.",
+  "category": "smartphones",
+  "price_onetime": 979.0,
+  "price_monthly": 0,
+  "original_price": 979.0,
+  "discount_pct": 0,
+  "rating": 4.7,
+  "review_count": 9210,
+  "colors": [
+   "black",
+   "blue",
+   "pink",
+   "green",
+   "yellow"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 27,
+  "in_stock": true,
+  "popularity": 0.88,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "face_id",
+   "eu_roaming",
+   "usb_c"
+  ],
+  "compatible_plans": [
+   "plan_m",
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 6,
+   "storage_gb": 256,
+   "display_inch": 6.1,
+   "display_type": "oled",
+   "refresh_rate_hz": 60,
+   "battery_mah": 3349,
+   "main_camera_mp": 48,
+   "front_camera_mp": 12,
+   "chipset": "A16 Bionic",
+   "os": "ios",
+   "sim": "dual_esim",
+   "connectivity": "5g",
+   "weight_g": 171,
+   "fast_charging_w": 20
   },
-  {
-    "id": "phone_iphone16pro",
-    "type": "phone",
-    "name": "Apple iPhone 16 Pro",
-    "brand": "Apple",
-    "description": "Premium iPhone with pro cameras and titanium build.",
-    "price_monthly": 40,
-    "price_onetime": 0,
-    "category": "phones",
-    "features": [
-      "camera",
-      "5g",
-      "eu_roaming",
-      "ios",
-      "gaming"
-    ],
-    "compatible_plans": [
-      "plan_l"
-    ],
-    "stock": 0,
-    "in_stock": false,
-    "image_url": "https://images.unsplash.com/photo-1592921870789-04563d55041c?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.85
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-iphone-15-pro-256",
+  "type": "phone",
+  "name": "iPhone 15 Pro 256GB",
+  "brand": "Apple",
+  "description": "Pro-grade titanium flagship with A17 Pro chip for console-level gaming, 48MP ProRAW camera system with 3x telephoto and 120Hz ProMotion display. The Action Button and USB-C 3 round out the pro package.",
+  "category": "smartphones",
+  "price_onetime": 1196.1,
+  "price_monthly": 0,
+  "original_price": 1329.0,
+  "discount_pct": 10,
+  "rating": 4.8,
+  "review_count": 14876,
+  "colors": [
+   "gray",
+   "black",
+   "white",
+   "blue"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 18,
+  "in_stock": true,
+  "popularity": 0.94,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "gaming",
+   "pro_camera",
+   "eu_roaming",
+   "usb_c"
+  ],
+  "compatible_plans": [
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1697284959152-32ef13855932?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 256,
+   "display_inch": 6.1,
+   "display_type": "ltpo_oled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 3274,
+   "main_camera_mp": 48,
+   "front_camera_mp": 12,
+   "chipset": "A17 Pro",
+   "os": "ios",
+   "sim": "dual_esim",
+   "connectivity": "5g",
+   "weight_g": 187,
+   "fast_charging_w": 27
   },
-  {
-    "id": "phone_a55",
-    "type": "phone",
-    "name": "Samsung Galaxy A55",
-    "brand": "Samsung",
-    "description": "Great value mid-range Android phone with a solid camera.",
-    "price_monthly": 8,
-    "price_onetime": 0,
-    "category": "phones",
-    "features": [
-      "camera",
-      "5g",
-      "android"
-    ],
-    "compatible_plans": [
-      "plan_s",
-      "plan_m"
-    ],
-    "stock": 30,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.62
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-galaxy-s24-256",
+  "type": "phone",
+  "name": "Samsung Galaxy S24 256GB",
+  "brand": "Samsung",
+  "description": "Compact AI flagship with Galaxy AI features like Circle to Search and live translation. Bright 6.2-inch 120Hz AMOLED display, 50MP camera with Nightography and seven years of updates.",
+  "category": "smartphones",
+  "price_onetime": 719.2,
+  "price_monthly": 0,
+  "original_price": 899.0,
+  "discount_pct": 20,
+  "rating": 4.6,
+  "review_count": 11540,
+  "colors": [
+   "black",
+   "gray",
+   "purple",
+   "yellow"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 35,
+  "in_stock": true,
+  "popularity": 0.91,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "ai_features",
+   "eu_roaming"
+  ],
+  "compatible_plans": [
+   "plan_m",
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 256,
+   "display_inch": 6.2,
+   "display_type": "amoled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 4000,
+   "main_camera_mp": 50,
+   "front_camera_mp": 12,
+   "chipset": "Exynos 2400",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 167,
+   "fast_charging_w": 25
   },
-  {
-    "id": "plan_s",
-    "type": "plan",
-    "name": "MagentaMobil S",
-    "brand": "Telekom",
-    "description": "Entry plan: 10 GB data, unlimited calls & texts in Germany.",
-    "price_monthly": 20,
-    "price_onetime": 0,
-    "category": "plans",
-    "features": [
-      "10gb",
-      "calls",
-      "germany"
-    ],
-    "compatible_plans": [],
-    "stock": 999,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1580654712603-eb43273aff33?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.45
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-galaxy-s24-ultra-256",
+  "type": "phone",
+  "name": "Samsung Galaxy S24 Ultra 256GB",
+  "brand": "Samsung",
+  "description": "Ultimate Galaxy with 200MP camera, 5x optical zoom, built-in S Pen and titanium frame. Snapdragon 8 Gen 3 power for gaming, a 5000mAh battery and the brightest 6.8-inch LTPO display Samsung has made.",
+  "category": "smartphones",
+  "price_onetime": 1231.65,
+  "price_monthly": 0,
+  "original_price": 1449.0,
+  "discount_pct": 15,
+  "rating": 4.8,
+  "review_count": 16204,
+  "colors": [
+   "gray",
+   "black",
+   "purple"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 21,
+  "in_stock": true,
+  "popularity": 0.95,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "ai_features",
+   "gaming",
+   "s_pen",
+   "pro_camera",
+   "eu_roaming"
+  ],
+  "compatible_plans": [
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1707227155874-e6d5cbae2c1c?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 12,
+   "storage_gb": 256,
+   "display_inch": 6.8,
+   "display_type": "ltpo_oled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 5000,
+   "main_camera_mp": 200,
+   "front_camera_mp": 12,
+   "chipset": "Snapdragon 8 Gen 3",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 232,
+   "fast_charging_w": 45
   },
-  {
-    "id": "plan_m",
-    "type": "plan",
-    "name": "MagentaMobil M",
-    "brand": "Telekom",
-    "description": "Popular plan: 40 GB data, EU roaming included, 5G.",
-    "price_monthly": 30,
-    "price_onetime": 0,
-    "category": "plans",
-    "features": [
-      "40gb",
-      "eu_roaming",
-      "5g",
-      "calls"
-    ],
-    "compatible_plans": [],
-    "stock": 999,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.72
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-galaxy-a55-128",
+  "type": "phone",
+  "name": "Samsung Galaxy A55 5G 128GB",
+  "brand": "Samsung",
+  "description": "Mid-range bestseller with a 6.6-inch 120Hz Super AMOLED display, metal frame and 50MP OIS camera. IP67 water resistance, a 5000mAh two-day battery and four years of Android updates.",
+  "category": "smartphones",
+  "price_onetime": 383.2,
+  "price_monthly": 0,
+  "original_price": 479.0,
+  "discount_pct": 20,
+  "rating": 4.5,
+  "review_count": 7830,
+  "colors": [
+   "blue",
+   "purple",
+   "yellow",
+   "black"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 48,
+  "in_stock": true,
+  "popularity": 0.84,
+  "features": [
+   "5g",
+   "water_resistant",
+   "nfc",
+   "eu_roaming",
+   "long_battery"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m",
+   "plan_l"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1618478594486-c65b899c4936?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 128,
+   "display_inch": 6.6,
+   "display_type": "amoled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 5000,
+   "main_camera_mp": 50,
+   "front_camera_mp": 32,
+   "chipset": "Exynos 1480",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 213,
+   "fast_charging_w": 25
   },
-  {
-    "id": "plan_l",
-    "type": "plan",
-    "name": "MagentaMobil L",
-    "brand": "Telekom",
-    "description": "Premium plan: unlimited data, EU roaming, 5G, hotspot.",
-    "price_monthly": 45,
-    "price_onetime": 0,
-    "category": "plans",
-    "features": [
-      "unlimited",
-      "eu_roaming",
-      "5g",
-      "hotspot",
-      "calls"
-    ],
-    "compatible_plans": [],
-    "stock": 999,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.55
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-galaxy-a15-128",
+  "type": "phone",
+  "name": "Samsung Galaxy A15 5G 128GB",
+  "brand": "Samsung",
+  "description": "Affordable 5G entry phone with a vivid 6.5-inch Super AMOLED display, 50MP camera and 5000mAh battery. Ideal first smartphone or budget daily driver with 25W charging.",
+  "category": "smartphones",
+  "price_onetime": 179.1,
+  "price_monthly": 0,
+  "original_price": 199.0,
+  "discount_pct": 10,
+  "rating": 4.2,
+  "review_count": 5342,
+  "colors": [
+   "black",
+   "blue",
+   "yellow"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 55,
+  "in_stock": true,
+  "popularity": 0.72,
+  "features": [
+   "5g",
+   "nfc",
+   "long_battery",
+   "eu_roaming",
+   "expandable_storage"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 4,
+   "storage_gb": 128,
+   "display_inch": 6.5,
+   "display_type": "amoled",
+   "refresh_rate_hz": 90,
+   "battery_mah": 5000,
+   "main_camera_mp": 50,
+   "front_camera_mp": 13,
+   "chipset": "Dimensity 6100+",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 200,
+   "fast_charging_w": 25
   },
-  {
-    "id": "accessory_case",
-    "type": "accessory",
-    "name": "Protective Case",
-    "brand": "Telekom",
-    "description": "Slim protective case, fits most flagship phones.",
-    "price_monthly": 0,
-    "price_onetime": 15,
-    "category": "accessories",
-    "features": [
-      "protection"
-    ],
-    "compatible_plans": [],
-    "stock": 200,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.65
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-pixel-8a-128",
+  "type": "phone",
+  "name": "Google Pixel 8a 128GB",
+  "brand": "Google",
+  "description": "Best-value camera phone with Tensor G3, Google AI features like Magic Editor and Best Take, and a smooth 120Hz Actua display. Seven years of OS and security updates included.",
+  "category": "smartphones",
+  "price_onetime": 439.2,
+  "price_monthly": 0,
+  "original_price": 549.0,
+  "discount_pct": 20,
+  "rating": 4.6,
+  "review_count": 6721,
+  "colors": [
+   "black",
+   "white",
+   "blue",
+   "green"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 39,
+  "in_stock": true,
+  "popularity": 0.86,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "ai_features",
+   "eu_roaming",
+   "call_screening"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m",
+   "plan_l"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 128,
+   "display_inch": 6.1,
+   "display_type": "oled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 4492,
+   "main_camera_mp": 64,
+   "front_camera_mp": 13,
+   "chipset": "Tensor G3",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 188,
+   "fast_charging_w": 18
   },
-  {
-    "id": "accessory_buds",
-    "type": "accessory",
-    "name": "Wireless Earbuds",
-    "brand": "Telekom",
-    "description": "Noise-cancelling wireless earbuds with 24h battery.",
-    "price_monthly": 0,
-    "price_onetime": 49,
-    "category": "accessories",
-    "features": [
-      "audio",
-      "wireless"
-    ],
-    "compatible_plans": [],
-    "stock": 80,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.6
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-pixel-9-pro-256",
+  "type": "phone",
+  "name": "Google Pixel 9 Pro 256GB",
+  "brand": "Google",
+  "description": "Google's AI powerhouse with Tensor G4, Gemini built in and a pro triple camera with 5x telephoto and 42MP selfie camera. Stunning 6.3-inch Super Actua LTPO display and polished aluminium design.",
+  "category": "smartphones",
+  "price_onetime": 1099.0,
+  "price_monthly": 0,
+  "original_price": 1099.0,
+  "discount_pct": 0,
+  "rating": 4.7,
+  "review_count": 4310,
+  "colors": [
+   "black",
+   "white",
+   "brown",
+   "pink"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 16,
+  "in_stock": true,
+  "popularity": 0.87,
+  "features": [
+   "5g",
+   "esim",
+   "wireless_charging",
+   "water_resistant",
+   "ai_features",
+   "pro_camera",
+   "eu_roaming"
+  ],
+  "compatible_plans": [
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1605236453806-6ff36851218e?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 16,
+   "storage_gb": 256,
+   "display_inch": 6.3,
+   "display_type": "ltpo_oled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 4700,
+   "main_camera_mp": 50,
+   "front_camera_mp": 42,
+   "chipset": "Tensor G4",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 199,
+   "fast_charging_w": 27
   },
-  {
-    "id": "accessory_charger",
-    "type": "accessory",
-    "name": "Fast Charger 45W",
-    "brand": "Telekom",
-    "description": "45W USB-C fast charger.",
-    "price_monthly": 0,
-    "price_onetime": 25,
-    "category": "accessories",
-    "features": [
-      "charging"
-    ],
-    "compatible_plans": [],
-    "stock": 150,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.55
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-redmi-note-13-128",
+  "type": "phone",
+  "name": "Xiaomi Redmi Note 13 5G 128GB",
+  "brand": "Xiaomi",
+  "description": "Budget champion with a 108MP camera, 6.67-inch 120Hz AMOLED display and 5000mAh battery with 33W turbo charging. Unbeatable value for streaming and social media.",
+  "category": "smartphones",
+  "price_onetime": 224.1,
+  "price_monthly": 0,
+  "original_price": 249.0,
+  "discount_pct": 10,
+  "rating": 4.3,
+  "review_count": 8954,
+  "colors": [
+   "black",
+   "white",
+   "blue"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.78,
+  "features": [
+   "5g",
+   "nfc",
+   "long_battery",
+   "eu_roaming",
+   "expandable_storage",
+   "headphone_jack"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 128,
+   "display_inch": 6.67,
+   "display_type": "amoled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 5000,
+   "main_camera_mp": 108,
+   "front_camera_mp": 16,
+   "chipset": "Dimensity 6080",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 175,
+   "fast_charging_w": 33
   },
-  {
-    "id": "phone_pixel9",
-    "type": "phone",
-    "name": "Google Pixel 9",
-    "brand": "Google",
-    "description": "Latest Pixel with an even better camera, on-device AI features, and clean Android.",
-    "price_monthly": 22,
-    "price_onetime": 0,
-    "category": "phones",
-    "features": [
-      "camera",
-      "5g",
-      "eu_roaming",
-      "android",
-      "ai_features"
-    ],
-    "compatible_plans": [
-      "plan_m",
-      "plan_l"
-    ],
-    "stock": 8,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.78
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-xiaomi-14t-256",
+  "type": "phone",
+  "name": "Xiaomi 14T 256GB",
+  "brand": "Xiaomi",
+  "description": "Upper mid-range performer with Leica-tuned 50MP triple camera, blazing 144Hz AMOLED display and 67W HyperCharge. Dimensity 8300 Ultra delivers smooth gaming at flagship-adjacent pricing.",
+  "category": "smartphones",
+  "price_onetime": 551.65,
+  "price_monthly": 0,
+  "original_price": 649.0,
+  "discount_pct": 15,
+  "rating": 4.4,
+  "review_count": 2861,
+  "colors": [
+   "black",
+   "gray",
+   "blue"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 33,
+  "in_stock": true,
+  "popularity": 0.69,
+  "features": [
+   "5g",
+   "nfc",
+   "water_resistant",
+   "gaming",
+   "ai_features",
+   "eu_roaming",
+   "fast_charging"
+  ],
+  "compatible_plans": [
+   "plan_m",
+   "plan_l"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1567581935884-3349723552ca?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 12,
+   "storage_gb": 256,
+   "display_inch": 6.67,
+   "display_type": "amoled",
+   "refresh_rate_hz": 144,
+   "battery_mah": 5000,
+   "main_camera_mp": 50,
+   "front_camera_mp": 32,
+   "chipset": "Dimensity 8300 Ultra",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 195,
+   "fast_charging_w": 67
   },
-  {
-    "id": "phone_iphone15",
-    "type": "phone",
-    "name": "Apple iPhone 15",
-    "brand": "Apple",
-    "description": "Reliable iPhone with a great camera and iOS ecosystem, at a lower price than the Pro line.",
-    "price_monthly": 32,
-    "price_onetime": 0,
-    "category": "phones",
-    "features": [
-      "camera",
-      "5g",
-      "eu_roaming",
-      "ios"
-    ],
-    "compatible_plans": [
-      "plan_m",
-      "plan_l"
-    ],
-    "stock": 14,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1592286927505-1def25115558?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.7
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-oneplus-nord4-256",
+  "type": "phone",
+  "name": "OnePlus Nord 4 256GB",
+  "brand": "OnePlus",
+  "description": "All-metal mid-ranger with a huge 5500mAh battery, 100W SUPERVOOC charging and fluid 120Hz AMOLED display. Snapdragon 7+ Gen 3 handles gaming and multitasking with ease.",
+  "category": "smartphones",
+  "price_onetime": 499.0,
+  "price_monthly": 0,
+  "original_price": 499.0,
+  "discount_pct": 0,
+  "rating": 4.5,
+  "review_count": 1985,
+  "colors": [
+   "gray",
+   "green",
+   "black"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 26,
+  "in_stock": true,
+  "popularity": 0.66,
+  "features": [
+   "5g",
+   "nfc",
+   "long_battery",
+   "fast_charging",
+   "gaming",
+   "eu_roaming",
+   "ai_features"
+  ],
+  "compatible_plans": [
+   "plan_m",
+   "plan_l"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1546054454-aa26e2b734c7?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 12,
+   "storage_gb": 256,
+   "display_inch": 6.74,
+   "display_type": "amoled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 5500,
+   "main_camera_mp": 50,
+   "front_camera_mp": 16,
+   "chipset": "Snapdragon 7+ Gen 3",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 200,
+   "fast_charging_w": 100
   },
-  {
-    "id": "plan_young",
-    "type": "plan",
-    "name": "MagentaMobil Young",
-    "brand": "Telekom",
-    "description": "Discounted plan for customers under 28: 30 GB data, EU roaming, 5G.",
-    "price_monthly": 25,
-    "price_onetime": 0,
-    "category": "plans",
-    "features": [
-      "30gb",
-      "eu_roaming",
-      "5g",
-      "calls",
-      "youth_discount"
-    ],
-    "compatible_plans": [],
-    "stock": 999,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1522199755839-a2bacb67c546?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.5
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-oneplus-12-256",
+  "type": "phone",
+  "name": "OnePlus 12 256GB",
+  "brand": "OnePlus",
+  "description": "Flagship killer with Snapdragon 8 Gen 3, 4th-gen Hasselblad camera with 3x periscope zoom and a 2K 120Hz LTPO display. 100W wired plus 50W wireless charging fill the 5400mAh battery in minutes.",
+  "category": "smartphones",
+  "price_onetime": 854.1,
+  "price_monthly": 0,
+  "original_price": 949.0,
+  "discount_pct": 10,
+  "rating": 4.6,
+  "review_count": 3742,
+  "colors": [
+   "black",
+   "green",
+   "white"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 14,
+  "in_stock": true,
+  "popularity": 0.74,
+  "features": [
+   "5g",
+   "nfc",
+   "wireless_charging",
+   "water_resistant",
+   "gaming",
+   "fast_charging",
+   "eu_roaming"
+  ],
+  "compatible_plans": [
+   "plan_l",
+   "plan_unlimited"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 16,
+   "storage_gb": 256,
+   "display_inch": 6.82,
+   "display_type": "ltpo_oled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 5400,
+   "main_camera_mp": 50,
+   "front_camera_mp": 32,
+   "chipset": "Snapdragon 8 Gen 3",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 220,
+   "fast_charging_w": 100
   },
-  {
-    "id": "accessory_screen_protector",
-    "type": "accessory",
-    "name": "Tempered Glass Screen Protector",
-    "brand": "Telekom",
-    "description": "Scratch-resistant tempered glass screen protector, fits most flagship phones.",
-    "price_monthly": 0,
-    "price_onetime": 12,
-    "category": "accessories",
-    "features": [
-      "protection"
-    ],
-    "compatible_plans": [],
-    "stock": 300,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.42
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "phone-nothing-2a-256",
+  "type": "phone",
+  "name": "Nothing Phone (2a) 256GB",
+  "brand": "Nothing",
+  "description": "Design-forward mid-ranger with the iconic transparent back and Glyph lights. Dimensity 7200 Pro, dual 50MP cameras and a 5000mAh battery wrapped in clean Nothing OS with three years of updates.",
+  "category": "smartphones",
+  "price_onetime": 349.0,
+  "price_monthly": 0,
+  "original_price": 349.0,
+  "discount_pct": 0,
+  "rating": 4.4,
+  "review_count": 2413,
+  "colors": [
+   "black",
+   "white"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 22,
+  "in_stock": true,
+  "popularity": 0.63,
+  "features": [
+   "5g",
+   "nfc",
+   "glyph_interface",
+   "long_battery",
+   "eu_roaming"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1523206489230-c012c64b2b48?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 256,
+   "display_inch": 6.7,
+   "display_type": "amoled",
+   "refresh_rate_hz": 120,
+   "battery_mah": 5000,
+   "main_camera_mp": 50,
+   "front_camera_mp": 32,
+   "chipset": "Dimensity 7200 Pro",
+   "os": "android",
+   "sim": "dual_sim",
+   "connectivity": "5g",
+   "weight_g": 190,
+   "fast_charging_w": 45
   },
-  {
-    "id": "bundle_home_mobile",
-    "type": "bundle",
-    "name": "Home & Mobile Bundle XL",
-    "brand": "Telekom",
-    "description": "Combines a mobile plan with home fiber internet and MagentaTV for a discounted monthly price.",
-    "price_monthly": 55,
-    "price_onetime": 0,
-    "category": "bundles",
-    "features": [
-      "fiber",
-      "mobile",
-      "tv",
-      "smart_home"
-    ],
-    "compatible_plans": [],
-    "stock": 999,
-    "in_stock": true,
-    "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=400&fit=crop&auto=format",
-    "popularity": 0.48
-  }
+  "subcategory": "smartphone"
+ },
+ {
+  "id": "tablet-ipad-10-64",
+  "type": "tablet",
+  "name": "Apple iPad 10th Gen 64GB WiFi",
+  "brand": "Apple",
+  "description": "The colourful all-round iPad with 10.9-inch Liquid Retina display, A14 Bionic chip and landscape 12MP front camera for video calls. Perfect for streaming, browsing, notes and homework.",
+  "category": "tablets",
+  "price_onetime": 386.1,
+  "price_monthly": 0,
+  "original_price": 429.0,
+  "discount_pct": 10,
+  "rating": 4.6,
+  "review_count": 12055,
+  "colors": [
+   "gray",
+   "blue",
+   "pink",
+   "yellow"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 31,
+  "in_stock": true,
+  "popularity": 0.85,
+  "features": [
+   "touch_id",
+   "usb_c",
+   "stylus_support",
+   "family_friendly"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 4,
+   "storage_gb": 64,
+   "display_inch": 10.9,
+   "display_type": "ips_lcd",
+   "battery_mah": 7606,
+   "os": "ipados",
+   "connectivity": "wifi",
+   "weight_g": 477,
+   "stylus_support": true
+  },
+  "subcategory": "tablet"
+ },
+ {
+  "id": "tablet-ipad-air-11-m2-128",
+  "type": "tablet",
+  "name": "Apple iPad Air 11 M2 128GB WiFi",
+  "brand": "Apple",
+  "description": "Powerful and portable iPad Air with the M2 chip for creative apps, photo editing and Apple Intelligence. Supports Apple Pencil Pro and Magic Keyboard for a laptop-class workflow.",
+  "category": "tablets",
+  "price_onetime": 699.0,
+  "price_monthly": 0,
+  "original_price": 699.0,
+  "discount_pct": 0,
+  "rating": 4.8,
+  "review_count": 5230,
+  "colors": [
+   "gray",
+   "white",
+   "blue",
+   "purple"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 19,
+  "in_stock": true,
+  "popularity": 0.82,
+  "features": [
+   "touch_id",
+   "usb_c",
+   "stylus_support",
+   "ai_features",
+   "creator_ready"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1561154464-82e9adf32764?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 128,
+   "display_inch": 11.0,
+   "display_type": "ips_lcd",
+   "battery_mah": 7606,
+   "os": "ipados",
+   "connectivity": "wifi",
+   "weight_g": 462,
+   "stylus_support": true
+  },
+  "subcategory": "tablet"
+ },
+ {
+  "id": "tablet-galaxy-tab-s9-fe-128",
+  "type": "tablet",
+  "name": "Samsung Galaxy Tab S9 FE 5G 128GB",
+  "brand": "Samsung",
+  "description": "Fan Edition tablet with a 10.9-inch 90Hz display, IP68 water resistance and included S Pen. 5G connectivity and an 8000mAh battery make it a great on-the-go companion for notes and Netflix.",
+  "category": "tablets",
+  "price_onetime": 396.75,
+  "price_monthly": 0,
+  "original_price": 529.0,
+  "discount_pct": 25,
+  "rating": 4.5,
+  "review_count": 3489,
+  "colors": [
+   "gray",
+   "green",
+   "purple"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 24,
+  "in_stock": true,
+  "popularity": 0.71,
+  "features": [
+   "5g",
+   "water_resistant",
+   "stylus_support",
+   "dex_mode",
+   "eu_roaming"
+  ],
+  "compatible_plans": [
+   "plan_s",
+   "plan_m"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 6,
+   "storage_gb": 128,
+   "display_inch": 10.9,
+   "display_type": "ips_lcd",
+   "battery_mah": 8000,
+   "os": "android",
+   "connectivity": "wifi_5g",
+   "weight_g": 523,
+   "stylus_support": true
+  },
+  "subcategory": "tablet"
+ },
+ {
+  "id": "tablet-galaxy-tab-a9-plus-64",
+  "type": "tablet",
+  "name": "Samsung Galaxy Tab A9+ 64GB WiFi",
+  "brand": "Samsung",
+  "description": "Affordable 11-inch family tablet with a smooth 90Hz display, quad speakers with Dolby Atmos and kids mode. Great for streaming, e-learning and casual gaming on a budget.",
+  "category": "tablets",
+  "price_onetime": 219.0,
+  "price_monthly": 0,
+  "original_price": 219.0,
+  "discount_pct": 0,
+  "rating": 4.3,
+  "review_count": 4127,
+  "colors": [
+   "gray",
+   "blue"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 44,
+  "in_stock": true,
+  "popularity": 0.65,
+  "features": [
+   "family_friendly",
+   "quad_speakers",
+   "expandable_storage"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1542751110-97427bbecf20?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 4,
+   "storage_gb": 64,
+   "display_inch": 11.0,
+   "display_type": "ips_lcd",
+   "battery_mah": 7040,
+   "os": "android",
+   "connectivity": "wifi",
+   "weight_g": 480,
+   "stylus_support": false
+  },
+  "subcategory": "tablet"
+ },
+ {
+  "id": "tablet-lenovo-tab-p12-128",
+  "type": "tablet",
+  "name": "Lenovo Tab P12 128GB WiFi",
+  "brand": "Lenovo",
+  "description": "Large 12.7-inch 3K tablet with included Tab Pen Plus, quad JBL speakers and a 10200mAh battery for marathon movie sessions. Ideal for split-screen productivity and entertainment.",
+  "category": "tablets",
+  "price_onetime": 269.1,
+  "price_monthly": 0,
+  "original_price": 299.0,
+  "discount_pct": 10,
+  "rating": 4.4,
+  "review_count": 1876,
+  "colors": [
+   "gray"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 0,
+  "in_stock": false,
+  "popularity": 0.54,
+  "features": [
+   "stylus_support",
+   "quad_speakers",
+   "long_battery",
+   "split_screen"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1587033411391-5d9e51cce126?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "ram_gb": 8,
+   "storage_gb": 128,
+   "display_inch": 12.7,
+   "display_type": "ips_lcd",
+   "battery_mah": 10200,
+   "os": "android",
+   "connectivity": "wifi",
+   "weight_g": 615,
+   "stylus_support": true
+  },
+  "subcategory": "tablet"
+ },
+ {
+  "id": "laptop-macbook-air-13-m3-256",
+  "type": "laptop",
+  "name": "Apple MacBook Air 13 M3 256GB",
+  "brand": "Apple",
+  "description": "Ultra-thin fanless laptop with the M3 chip, up to 18 hours of battery and a brilliant Liquid Retina display. Perfect for students and professionals who need silent all-day performance.",
+  "category": "laptops",
+  "price_onetime": 1199.0,
+  "price_monthly": 0,
+  "original_price": 1199.0,
+  "discount_pct": 0,
+  "rating": 4.8,
+  "review_count": 9873,
+  "colors": [
+   "black",
+   "white",
+   "gray"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 23,
+  "in_stock": true,
+  "popularity": 0.92,
+  "features": [
+   "fanless",
+   "touch_id",
+   "long_battery",
+   "ai_features",
+   "backlit_keyboard"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "cpu": "Apple M3 8-core",
+   "ram_gb": 8,
+   "storage_gb": 256,
+   "storage_type": "ssd",
+   "gpu": "Apple M3 8-core GPU",
+   "display_inch": 13.6,
+   "display_resolution": "2560x1664",
+   "battery_hours": 18,
+   "weight_kg": 1.24,
+   "os": "macos"
+  },
+  "subcategory": "laptop"
+ },
+ {
+  "id": "laptop-dell-xps-13-9340",
+  "type": "laptop",
+  "name": "Dell XPS 13 9340 Core Ultra 7 512GB",
+  "brand": "Dell",
+  "description": "Premium ultrabook with Intel Core Ultra 7 and a dedicated NPU for on-device AI, wrapped in a CNC aluminium chassis with edge-to-edge keyboard. Compact 13.4-inch InfinityEdge display with tiny bezels.",
+  "category": "laptops",
+  "price_onetime": 1274.15,
+  "price_monthly": 0,
+  "original_price": 1499.0,
+  "discount_pct": 15,
+  "rating": 4.5,
+  "review_count": 2134,
+  "colors": [
+   "gray"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 11,
+  "in_stock": true,
+  "popularity": 0.68,
+  "features": [
+   "ai_features",
+   "fingerprint_reader",
+   "backlit_keyboard",
+   "thunderbolt_4",
+   "premium_build"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "cpu": "Intel Core Ultra 7 155H",
+   "ram_gb": 16,
+   "storage_gb": 512,
+   "storage_type": "ssd",
+   "gpu": "Intel Arc Graphics",
+   "display_inch": 13.4,
+   "display_resolution": "1920x1200",
+   "battery_hours": 15,
+   "weight_kg": 1.19,
+   "os": "windows_11"
+  },
+  "subcategory": "laptop"
+ },
+ {
+  "id": "laptop-lenovo-ideapad-slim5-14",
+  "type": "laptop",
+  "name": "Lenovo IdeaPad Slim 5 14 Ryzen 7 512GB",
+  "brand": "Lenovo",
+  "description": "Best-value everyday laptop with Ryzen 7 performance, a bright 14-inch OLED display and rapid-charge battery. Great for office work, study and light photo editing.",
+  "category": "laptops",
+  "price_onetime": 629.1,
+  "price_monthly": 0,
+  "original_price": 699.0,
+  "discount_pct": 10,
+  "rating": 4.4,
+  "review_count": 3560,
+  "colors": [
+   "gray",
+   "blue"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 37,
+  "in_stock": true,
+  "popularity": 0.76,
+  "features": [
+   "oled_display",
+   "fingerprint_reader",
+   "backlit_keyboard",
+   "rapid_charge"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "cpu": "AMD Ryzen 7 7730U",
+   "ram_gb": 16,
+   "storage_gb": 512,
+   "storage_type": "ssd",
+   "gpu": "AMD Radeon Graphics",
+   "display_inch": 14.0,
+   "display_resolution": "1920x1200",
+   "battery_hours": 12,
+   "weight_kg": 1.46,
+   "os": "windows_11"
+  },
+  "subcategory": "laptop"
+ },
+ {
+  "id": "laptop-lenovo-legion5-16-rtx4060",
+  "type": "laptop",
+  "name": "Lenovo Legion 5 16 RTX 4060 1TB",
+  "brand": "Lenovo",
+  "description": "Serious gaming laptop with GeForce RTX 4060, a 165Hz 2.5K display and Legion ColdFront cooling for sustained frame rates. Ryzen 7 and 16GB RAM crush AAA titles and creative workloads alike.",
+  "category": "laptops",
+  "price_onetime": 1189.15,
+  "price_monthly": 0,
+  "original_price": 1399.0,
+  "discount_pct": 15,
+  "rating": 4.6,
+  "review_count": 2718,
+  "colors": [
+   "black"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 9,
+  "in_stock": true,
+  "popularity": 0.7,
+  "features": [
+   "gaming",
+   "rgb_keyboard",
+   "high_refresh_display",
+   "advanced_cooling"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "cpu": "AMD Ryzen 7 7745HX",
+   "ram_gb": 16,
+   "storage_gb": 1024,
+   "storage_type": "ssd",
+   "gpu": "NVIDIA GeForce RTX 4060 8GB",
+   "display_inch": 16.0,
+   "display_resolution": "2560x1600",
+   "battery_hours": 6,
+   "weight_kg": 2.4,
+   "os": "windows_11"
+  },
+  "subcategory": "laptop"
+ },
+ {
+  "id": "laptop-galaxy-book4-15",
+  "type": "laptop",
+  "name": "Samsung Galaxy Book4 15 512GB",
+  "brand": "Samsung",
+  "description": "Slim 15.6-inch laptop that pairs seamlessly with Galaxy phones and tablets via Quick Share and Second Screen. Intel Core 5, all-day battery and a full-size keyboard with number pad.",
+  "category": "laptops",
+  "price_onetime": 799.0,
+  "price_monthly": 0,
+  "original_price": 799.0,
+  "discount_pct": 0,
+  "rating": 4.3,
+  "review_count": 1420,
+  "colors": [
+   "gray"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 28,
+  "in_stock": true,
+  "popularity": 0.58,
+  "features": [
+   "galaxy_ecosystem",
+   "fingerprint_reader",
+   "backlit_keyboard",
+   "long_battery"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "cpu": "Intel Core 5 120U",
+   "ram_gb": 16,
+   "storage_gb": 512,
+   "storage_type": "ssd",
+   "gpu": "Intel Graphics",
+   "display_inch": 15.6,
+   "display_resolution": "1920x1080",
+   "battery_hours": 13,
+   "weight_kg": 1.55,
+   "os": "windows_11"
+  },
+  "subcategory": "laptop"
+ },
+ {
+  "id": "wearable-apple-watch-s9-45",
+  "type": "wearable",
+  "name": "Apple Watch Series 9 45mm GPS",
+  "brand": "Apple",
+  "description": "The most advanced Apple Watch with the S9 chip, Double Tap gesture and a 2000-nit always-on display. Tracks heart rate, sleep, workouts and cycle health with crash and fall detection.",
+  "category": "wearables",
+  "price_onetime": 449.0,
+  "price_monthly": 0,
+  "original_price": 449.0,
+  "discount_pct": 0,
+  "rating": 4.8,
+  "review_count": 11230,
+  "colors": [
+   "black",
+   "white",
+   "pink",
+   "red"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 30,
+  "in_stock": true,
+  "popularity": 0.9,
+  "features": [
+   "heart_rate",
+   "ecg",
+   "sleep_tracking",
+   "water_resistant",
+   "fall_detection",
+   "always_on_display"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "display_inch": 1.9,
+   "battery_days": 1,
+   "gps": true,
+   "heart_rate": true,
+   "water_resistance": "5atm",
+   "os": "watchos",
+   "case_size_mm": 45
+  },
+  "subcategory": "smartwatch"
+ },
+ {
+  "id": "wearable-galaxy-watch6-44",
+  "type": "wearable",
+  "name": "Samsung Galaxy Watch 6 44mm BT",
+  "brand": "Samsung",
+  "description": "Sleek Wear OS smartwatch with advanced sleep coaching, body composition analysis and a bright sapphire-glass display. Personalised heart rate zones keep your training on target.",
+  "category": "wearables",
+  "price_onetime": 271.2,
+  "price_monthly": 0,
+  "original_price": 339.0,
+  "discount_pct": 20,
+  "rating": 4.5,
+  "review_count": 6845,
+  "colors": [
+   "gray"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 25,
+  "in_stock": true,
+  "popularity": 0.77,
+  "features": [
+   "heart_rate",
+   "sleep_tracking",
+   "body_composition",
+   "water_resistant",
+   "nfc_payments"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1617043786394-f977fa12eddf?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "display_inch": 1.5,
+   "battery_days": 2,
+   "gps": true,
+   "heart_rate": true,
+   "water_resistance": "5atm",
+   "os": "wear_os",
+   "case_size_mm": 44
+  },
+  "subcategory": "smartwatch"
+ },
+ {
+  "id": "wearable-garmin-forerunner-265",
+  "type": "wearable",
+  "name": "Garmin Forerunner 265 46mm",
+  "brand": "Garmin",
+  "description": "Serious runner's watch with a vivid AMOLED touchscreen, multi-band GPS, training readiness scores and up to 13 days of battery. Race predictions and recovery insights help you PB safely.",
+  "category": "wearables",
+  "price_onetime": 449.1,
+  "price_monthly": 0,
+  "original_price": 499.0,
+  "discount_pct": 10,
+  "rating": 4.7,
+  "review_count": 3128,
+  "colors": [
+   "black",
+   "white",
+   "blue"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 13,
+  "in_stock": true,
+  "popularity": 0.62,
+  "features": [
+   "heart_rate",
+   "multi_band_gps",
+   "training_metrics",
+   "water_resistant",
+   "long_battery",
+   "music_storage"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "display_inch": 1.3,
+   "battery_days": 13,
+   "gps": true,
+   "heart_rate": true,
+   "water_resistance": "5atm",
+   "os": "garmin_os",
+   "case_size_mm": 46
+  },
+  "subcategory": "smartwatch"
+ },
+ {
+  "id": "wearable-xiaomi-band-8",
+  "type": "wearable",
+  "name": "Xiaomi Smart Band 8",
+  "brand": "Xiaomi",
+  "description": "Feather-light fitness band with a 1.62-inch AMOLED display, 150+ sport modes, heart rate and sleep tracking, and up to 16 days of battery. Unbeatable entry into fitness tracking.",
+  "category": "wearables",
+  "price_onetime": 39.99,
+  "price_monthly": 0,
+  "original_price": 39.99,
+  "discount_pct": 0,
+  "rating": 4.4,
+  "review_count": 15672,
+  "colors": [
+   "black",
+   "yellow"
+  ],
+  "model_year": 2023,
+  "warranty_months": 12,
+  "stock": 58,
+  "in_stock": true,
+  "popularity": 0.81,
+  "features": [
+   "heart_rate",
+   "sleep_tracking",
+   "water_resistant",
+   "long_battery",
+   "sport_modes"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "display_inch": 1.62,
+   "battery_days": 16,
+   "gps": false,
+   "heart_rate": true,
+   "water_resistance": "5atm",
+   "os": "proprietary",
+   "case_size_mm": 48
+  },
+  "subcategory": "fitness_band"
+ },
+ {
+  "id": "wearable-pixel-watch-2",
+  "type": "wearable",
+  "name": "Google Pixel Watch 2 41mm WiFi",
+  "brand": "Google",
+  "description": "Elegant round smartwatch with Fitbit health tracking, stress management via cEDA sensor and safety check. Deep Google integration with Assistant, Maps and Wallet on your wrist.",
+  "category": "wearables",
+  "price_onetime": 299.25,
+  "price_monthly": 0,
+  "original_price": 399.0,
+  "discount_pct": 25,
+  "rating": 4.3,
+  "review_count": 2954,
+  "colors": [
+   "black",
+   "gray",
+   "yellow"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 17,
+  "in_stock": true,
+  "popularity": 0.59,
+  "features": [
+   "heart_rate",
+   "sleep_tracking",
+   "stress_tracking",
+   "water_resistant",
+   "nfc_payments",
+   "fitbit_integration"
+  ],
+  "compatible_plans": [
+   "plan_s"
+  ],
+  "image_url": "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "display_inch": 1.2,
+   "battery_days": 1,
+   "gps": true,
+   "heart_rate": true,
+   "water_resistance": "5atm",
+   "os": "wear_os",
+   "case_size_mm": 41
+  },
+  "subcategory": "smartwatch"
+ },
+ {
+  "id": "audio-airpods-pro-2-usbc",
+  "type": "audio",
+  "name": "Apple AirPods Pro 2 USB-C",
+  "brand": "Apple",
+  "description": "Apple's best earbuds with up to 2x stronger active noise cancellation, Adaptive Audio and Personalised Spatial Audio. USB-C MagSafe case with Precision Finding and up to 30 hours total listening.",
+  "category": "audio",
+  "price_onetime": 237.15,
+  "price_monthly": 0,
+  "original_price": 279.0,
+  "discount_pct": 15,
+  "rating": 4.8,
+  "review_count": 21504,
+  "colors": [
+   "white"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 46,
+  "in_stock": true,
+  "popularity": 0.97,
+  "features": [
+   "anc",
+   "transparency_mode",
+   "spatial_audio",
+   "wireless_charging",
+   "water_resistant"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1608156639585-b3a032ef9689?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "form_factor": "tws_earbuds",
+   "anc": true,
+   "battery_hours": 30,
+   "bluetooth_version": "5.3",
+   "codec": "aac",
+   "water_resistance": "ip54",
+   "multipoint": false
+  },
+  "subcategory": "earbuds"
+ },
+ {
+  "id": "audio-sony-wh1000xm5",
+  "type": "audio",
+  "name": "Sony WH-1000XM5",
+  "brand": "Sony",
+  "description": "Industry-leading noise cancelling over-ear headphones with eight microphones, 30-hour battery and LDAC hi-res audio. Crystal-clear calls and multipoint pairing make them the ultimate travel companion.",
+  "category": "audio",
+  "price_onetime": 314.25,
+  "price_monthly": 0,
+  "original_price": 419.0,
+  "discount_pct": 25,
+  "rating": 4.7,
+  "review_count": 13890,
+  "colors": [
+   "black",
+   "gray",
+   "blue"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 32,
+  "in_stock": true,
+  "popularity": 0.89,
+  "features": [
+   "anc",
+   "hi_res_audio",
+   "multipoint",
+   "long_battery",
+   "quick_charge",
+   "foldable"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "form_factor": "over_ear",
+   "anc": true,
+   "battery_hours": 30,
+   "bluetooth_version": "5.2",
+   "codec": "aac_ldac",
+   "water_resistance": "none",
+   "multipoint": true
+  },
+  "subcategory": "headphones"
+ },
+ {
+  "id": "audio-bose-qc-ultra-earbuds",
+  "type": "audio",
+  "name": "Bose QuietComfort Ultra Earbuds",
+  "brand": "Bose",
+  "description": "World-class noise cancelling earbuds with Bose Immersive Audio and CustomTune ear calibration. Comfortable stability bands and aptX Adaptive for high-quality wireless sound.",
+  "category": "audio",
+  "price_onetime": 269.1,
+  "price_monthly": 0,
+  "original_price": 299.0,
+  "discount_pct": 10,
+  "rating": 4.6,
+  "review_count": 5217,
+  "colors": [
+   "black",
+   "white",
+   "gray"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 20,
+  "in_stock": true,
+  "popularity": 0.73,
+  "features": [
+   "anc",
+   "immersive_audio",
+   "transparency_mode",
+   "water_resistant",
+   "multipoint"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "form_factor": "tws_earbuds",
+   "anc": true,
+   "battery_hours": 24,
+   "bluetooth_version": "5.3",
+   "codec": "aac_aptx_adaptive",
+   "water_resistance": "ipx4",
+   "multipoint": true
+  },
+  "subcategory": "earbuds"
+ },
+ {
+  "id": "audio-jbl-flip-6",
+  "type": "audio",
+  "name": "JBL Flip 6",
+  "brand": "JBL",
+  "description": "Bold portable Bluetooth speaker with punchy JBL Original Pro Sound, racetrack woofer and separate tweeter. IP67 dust and waterproof with 12 hours of playtime for pool, park and party.",
+  "category": "audio",
+  "price_onetime": 111.2,
+  "price_monthly": 0,
+  "original_price": 139.0,
+  "discount_pct": 20,
+  "rating": 4.7,
+  "review_count": 18344,
+  "colors": [
+   "black",
+   "blue",
+   "red",
+   "green"
+  ],
+  "model_year": 2022,
+  "warranty_months": 12,
+  "stock": 51,
+  "in_stock": true,
+  "popularity": 0.83,
+  "features": [
+   "waterproof",
+   "portable",
+   "partyboost",
+   "long_battery"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "form_factor": "speaker",
+   "anc": false,
+   "battery_hours": 12,
+   "bluetooth_version": "5.1",
+   "codec": "sbc",
+   "water_resistance": "ip67",
+   "multipoint": false
+  },
+  "subcategory": "speaker"
+ },
+ {
+  "id": "audio-galaxy-buds2-pro",
+  "type": "audio",
+  "name": "Samsung Galaxy Buds2 Pro",
+  "brand": "Samsung",
+  "description": "Compact hi-fi earbuds with intelligent ANC, 24-bit audio on Galaxy devices and 360 Audio with head tracking. IPX7 water resistance survives sweaty workouts and rain.",
+  "category": "audio",
+  "price_onetime": 160.3,
+  "price_monthly": 0,
+  "original_price": 229.0,
+  "discount_pct": 30,
+  "rating": 4.5,
+  "review_count": 9412,
+  "colors": [
+   "gray",
+   "white",
+   "purple"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 38,
+  "in_stock": true,
+  "popularity": 0.75,
+  "features": [
+   "anc",
+   "360_audio",
+   "water_resistant",
+   "wireless_charging",
+   "voice_detect"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "form_factor": "tws_earbuds",
+   "anc": true,
+   "battery_hours": 18,
+   "bluetooth_version": "5.3",
+   "codec": "aac_ssc",
+   "water_resistance": "ipx7",
+   "multipoint": false
+  },
+  "subcategory": "earbuds"
+ },
+ {
+  "id": "audio-sony-wi-c100",
+  "type": "audio",
+  "name": "Sony WI-C100",
+  "brand": "Sony",
+  "description": "Lightweight neckband earphones with an incredible 25-hour battery, DSEE sound restoration and splash-proof design. Reliable everyday audio for commuting and calls on a tiny budget.",
+  "category": "audio",
+  "price_onetime": 24.99,
+  "price_monthly": 0,
+  "original_price": 24.99,
+  "discount_pct": 0,
+  "rating": 4.1,
+  "review_count": 6203,
+  "colors": [
+   "black",
+   "white",
+   "blue"
+  ],
+  "model_year": 2022,
+  "warranty_months": 12,
+  "stock": 0,
+  "in_stock": false,
+  "popularity": 0.41,
+  "features": [
+   "long_battery",
+   "water_resistant",
+   "voice_assistant"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "form_factor": "neckband",
+   "anc": false,
+   "battery_hours": 25,
+   "bluetooth_version": "5.0",
+   "codec": "aac",
+   "water_resistance": "ipx4",
+   "multipoint": false
+  },
+  "subcategory": "neckband"
+ },
+ {
+  "id": "acc-apple-silicone-case-iphone15",
+  "type": "accessory",
+  "name": "Apple Silicone Case with MagSafe for iPhone 15",
+  "brand": "Apple",
+  "description": "Original Apple silicone case with silky soft-touch finish and built-in MagSafe magnets for perfect wireless charging alignment. Microfibre lining protects your iPhone 15 from scratches.",
+  "category": "accessories",
+  "price_onetime": 59.0,
+  "price_monthly": 0,
+  "original_price": 59.0,
+  "discount_pct": 0,
+  "rating": 4.5,
+  "review_count": 4820,
+  "colors": [
+   "black",
+   "blue",
+   "brown",
+   "pink"
+  ],
+  "model_year": 2023,
+  "warranty_months": 12,
+  "stock": 57,
+  "in_stock": true,
+  "popularity": 0.7,
+  "features": [
+   "magsafe_compatible",
+   "wireless_charging",
+   "drop_protection"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "case",
+   "compatible_with": [
+    "phone-iphone-15-128",
+    "phone-iphone-15-256"
+   ],
+   "material": "silicone",
+   "wattage_w": 0
+  },
+  "subcategory": "case"
+ },
+ {
+  "id": "acc-anker-nano-65w-charger",
+  "type": "accessory",
+  "name": "Anker Nano II 65W USB-C Charger",
+  "brand": "Anker",
+  "description": "Pocket-sized GaN II charger that fast-charges laptops, tablets and phones from a single USB-C port. Charges a MacBook Air at full speed while being half the size of the original charger.",
+  "category": "accessories",
+  "price_onetime": 49.99,
+  "price_monthly": 0,
+  "original_price": 49.99,
+  "discount_pct": 0,
+  "rating": 4.7,
+  "review_count": 11245,
+  "colors": [
+   "black",
+   "white"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 49,
+  "in_stock": true,
+  "popularity": 0.79,
+  "features": [
+   "gan_technology",
+   "fast_charging",
+   "compact",
+   "usb_c"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "charger",
+   "compatible_with": [
+    "Apple",
+    "Samsung",
+    "Google",
+    "Xiaomi",
+    "OnePlus",
+    "Lenovo",
+    "Dell"
+   ],
+   "material": "plastic",
+   "wattage_w": 65
+  },
+  "subcategory": "charger"
+ },
+ {
+  "id": "acc-anker-737-powerbank-24k",
+  "type": "accessory",
+  "name": "Anker 737 PowerCore 24K Power Bank",
+  "brand": "Anker",
+  "description": "Massive 24000mAh power bank with 140W two-way fast charging and a smart display showing real-time output. Charges a laptop, tablet and phone simultaneously - ideal for travel and remote work.",
+  "category": "accessories",
+  "price_onetime": 119.2,
+  "price_monthly": 0,
+  "original_price": 149.0,
+  "discount_pct": 20,
+  "rating": 4.6,
+  "review_count": 5934,
+  "colors": [
+   "black"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 26,
+  "in_stock": true,
+  "popularity": 0.67,
+  "features": [
+   "fast_charging",
+   "high_capacity",
+   "smart_display",
+   "usb_c",
+   "airline_approved"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "powerbank",
+   "compatible_with": [
+    "Apple",
+    "Samsung",
+    "Google",
+    "Xiaomi",
+    "OnePlus",
+    "Lenovo",
+    "Dell"
+   ],
+   "material": "plastic",
+   "wattage_w": 140
+  },
+  "subcategory": "powerbank"
+ },
+ {
+  "id": "acc-belkin-3in1-magsafe-stand",
+  "type": "accessory",
+  "name": "Belkin BoostCharge Pro 3-in-1 MagSafe Stand",
+  "brand": "Belkin",
+  "description": "Official MagSafe 15W charging stand that powers iPhone, Apple Watch and AirPods simultaneously. Fast-charges Apple Watch Series 9 and holds your iPhone in portrait or landscape for StandBy mode.",
+  "category": "accessories",
+  "price_onetime": 149.99,
+  "price_monthly": 0,
+  "original_price": 149.99,
+  "discount_pct": 0,
+  "rating": 4.6,
+  "review_count": 3287,
+  "colors": [
+   "black",
+   "white"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 15,
+  "in_stock": true,
+  "popularity": 0.6,
+  "features": [
+   "magsafe_compatible",
+   "wireless_charging",
+   "fast_charging",
+   "3_in_1"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1615526675159-e248c3021d3f?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "charger",
+   "compatible_with": [
+    "phone-iphone-15-128",
+    "phone-iphone-15-256",
+    "phone-iphone-15-pro-256",
+    "wearable-apple-watch-s9-45",
+    "audio-airpods-pro-2-usbc"
+   ],
+   "material": "steel_silicone",
+   "wattage_w": 15
+  },
+  "subcategory": "charger"
+ },
+ {
+  "id": "acc-belkin-screenforce-s24",
+  "type": "accessory",
+  "name": "Belkin ScreenForce TemperedGlass for Galaxy S24",
+  "brand": "Belkin",
+  "description": "Precision-fit tempered glass screen protector with 9H hardness against scratches and drops. Includes an easy-align tray for bubble-free installation on the Galaxy S24.",
+  "category": "accessories",
+  "price_onetime": 29.99,
+  "price_monthly": 0,
+  "original_price": 29.99,
+  "discount_pct": 0,
+  "rating": 4.2,
+  "review_count": 1856,
+  "colors": [
+   "white"
+  ],
+  "model_year": 2024,
+  "warranty_months": 12,
+  "stock": 53,
+  "in_stock": true,
+  "popularity": 0.48,
+  "features": [
+   "scratch_protection",
+   "easy_install",
+   "case_friendly"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "screen_protector",
+   "compatible_with": [
+    "phone-galaxy-s24-256"
+   ],
+   "material": "tempered_glass",
+   "wattage_w": 0
+  },
+  "subcategory": "screen_protector"
+ },
+ {
+  "id": "acc-anker-usbc-cable-100w",
+  "type": "accessory",
+  "name": "Anker 765 USB-C to USB-C Cable 100W 1.8m",
+  "brand": "Anker",
+  "description": "Rugged nylon-braided USB-C cable rated for 100W laptop charging and a 25000-bend lifespan. One cable for phones, tablets and notebooks with USB-IF certification.",
+  "category": "accessories",
+  "price_onetime": 19.99,
+  "price_monthly": 0,
+  "original_price": 19.99,
+  "discount_pct": 0,
+  "rating": 4.8,
+  "review_count": 14203,
+  "colors": [
+   "black",
+   "white"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.71,
+  "features": [
+   "fast_charging",
+   "durable",
+   "usb_c",
+   "usb_if_certified"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1618410320928-25228d811631?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "cable",
+   "compatible_with": [
+    "Apple",
+    "Samsung",
+    "Google",
+    "Xiaomi",
+    "OnePlus",
+    "Lenovo",
+    "Dell"
+   ],
+   "material": "nylon_braided",
+   "wattage_w": 100
+  },
+  "subcategory": "cable"
+ },
+ {
+  "id": "acc-anker-555-usbc-hub",
+  "type": "accessory",
+  "name": "Anker 555 USB-C Hub 8-in-1",
+  "brand": "Anker",
+  "description": "Aluminium 8-in-1 hub adding 4K HDMI, 10Gbps USB ports, SD card readers, Ethernet and 85W pass-through charging to any USB-C laptop. The home-office essential for single-cable setups.",
+  "category": "accessories",
+  "price_onetime": 89.99,
+  "price_monthly": 0,
+  "original_price": 89.99,
+  "discount_pct": 0,
+  "rating": 4.5,
+  "review_count": 4576,
+  "colors": [
+   "gray"
+  ],
+  "model_year": 2022,
+  "warranty_months": 24,
+  "stock": 34,
+  "in_stock": true,
+  "popularity": 0.55,
+  "features": [
+   "4k_hdmi",
+   "ethernet",
+   "sd_card_reader",
+   "pass_through_charging",
+   "usb_c"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1625723044792-44de16ccb4e9?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "hub",
+   "compatible_with": [
+    "laptop-macbook-air-13-m3-256",
+    "laptop-dell-xps-13-9340",
+    "laptop-lenovo-ideapad-slim5-14",
+    "laptop-galaxy-book4-15"
+   ],
+   "material": "aluminum",
+   "wattage_w": 85
+  },
+  "subcategory": "hub"
+ },
+ {
+  "id": "acc-belkin-car-vent-mount",
+  "type": "accessory",
+  "name": "Belkin Car Vent Mount Pro with MagSafe",
+  "brand": "Belkin",
+  "description": "Secure magnetic car mount that snaps your MagSafe iPhone into perfect navigation position on any air vent. One-handed docking with an integrated cable tidy for road trips.",
+  "category": "accessories",
+  "price_onetime": 39.99,
+  "price_monthly": 0,
+  "original_price": 39.99,
+  "discount_pct": 0,
+  "rating": 4.3,
+  "review_count": 2740,
+  "colors": [
+   "black"
+  ],
+  "model_year": 2023,
+  "warranty_months": 24,
+  "stock": 41,
+  "in_stock": true,
+  "popularity": 0.46,
+  "features": [
+   "magsafe_compatible",
+   "one_hand_docking",
+   "cable_management"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1556656793-08538906a9f8?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "accessory_type": "mount",
+   "compatible_with": [
+    "Apple",
+    "phone-iphone-15-128",
+    "phone-iphone-15-256",
+    "phone-iphone-15-pro-256"
+   ],
+   "material": "plastic",
+   "wattage_w": 0
+  },
+  "subcategory": "mount"
+ },
+ {
+  "id": "plan_s",
+  "type": "plan",
+  "name": "Telekom Mobil S",
+  "brand": "Telekom",
+  "description": "Entry mobile tariff with 10GB of high-speed 5G data, unlimited calls and SMS in Germany and full EU roaming included. Perfect for light users, wearables and second devices.",
+  "category": "plans",
+  "price_onetime": 0,
+  "price_monthly": 19.95,
+  "original_price": 0,
+  "discount_pct": 0,
+  "rating": 4.2,
+  "review_count": 8340,
+  "colors": [],
+  "model_year": 2024,
+  "warranty_months": 0,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.8,
+  "features": [
+   "5g",
+   "eu_roaming",
+   "esim",
+   "hotspot",
+   "unlimited_calls"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "data_gb": 10,
+   "speed_mbps": 300,
+   "contract_months": 24,
+   "eu_roaming": true,
+   "five_g": true,
+   "hotspot": true,
+   "streaming_bonus": ""
+  },
+  "subcategory": "mobile_plan"
+ },
+ {
+  "id": "plan_m",
+  "type": "plan",
+  "name": "Telekom Mobil M",
+  "brand": "Telekom",
+  "description": "The most popular tariff: 25GB of 5G data at up to 300 Mbps, unlimited calls, EU roaming and eSIM support. Plenty of headroom for streaming, navigation and social media every day.",
+  "category": "plans",
+  "price_onetime": 0,
+  "price_monthly": 29.95,
+  "original_price": 0,
+  "discount_pct": 0,
+  "rating": 4.4,
+  "review_count": 12780,
+  "colors": [],
+  "model_year": 2024,
+  "warranty_months": 0,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.93,
+  "features": [
+   "5g",
+   "eu_roaming",
+   "esim",
+   "hotspot",
+   "unlimited_calls"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1520923642038-b4259acecbd7?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "data_gb": 25,
+   "speed_mbps": 300,
+   "contract_months": 24,
+   "eu_roaming": true,
+   "five_g": true,
+   "hotspot": true,
+   "streaming_bonus": ""
+  },
+  "subcategory": "mobile_plan"
+ },
+ {
+  "id": "plan_l",
+  "type": "plan",
+  "name": "Telekom Mobil L",
+  "brand": "Telekom",
+  "description": "Generous 50GB 5G tariff with unlimited calls, full EU roaming, hotspot use and 6 months of Disney+ on top. Built for heavy streamers, commuters and mobile workers.",
+  "category": "plans",
+  "price_onetime": 0,
+  "price_monthly": 39.95,
+  "original_price": 0,
+  "discount_pct": 0,
+  "rating": 4.5,
+  "review_count": 7654,
+  "colors": [],
+  "model_year": 2024,
+  "warranty_months": 0,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.87,
+  "features": [
+   "5g",
+   "eu_roaming",
+   "esim",
+   "hotspot",
+   "unlimited_calls",
+   "streaming_bonus"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "data_gb": 50,
+   "speed_mbps": 300,
+   "contract_months": 24,
+   "eu_roaming": true,
+   "five_g": true,
+   "hotspot": true,
+   "streaming_bonus": "disney_plus_6_months"
+  },
+  "subcategory": "mobile_plan"
+ },
+ {
+  "id": "plan_unlimited",
+  "type": "plan",
+  "name": "Telekom Mobil Unlimited",
+  "brand": "Telekom",
+  "description": "Truly unlimited 5G data at maximum network speed with unlimited calls, EU roaming, unrestricted hotspot use and 12 months of Disney+ included. Never think about data volume again.",
+  "category": "plans",
+  "price_onetime": 0,
+  "price_monthly": 54.95,
+  "original_price": 0,
+  "discount_pct": 0,
+  "rating": 4.6,
+  "review_count": 5121,
+  "colors": [],
+  "model_year": 2024,
+  "warranty_months": 0,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.76,
+  "features": [
+   "5g",
+   "eu_roaming",
+   "esim",
+   "hotspot",
+   "unlimited_calls",
+   "unlimited_data",
+   "streaming_bonus"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1512428559087-560fa5ceab42?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "data_gb": 999,
+   "speed_mbps": 300,
+   "contract_months": 24,
+   "eu_roaming": true,
+   "five_g": true,
+   "hotspot": true,
+   "streaming_bonus": "disney_plus_12_months"
+  },
+  "subcategory": "mobile_plan"
+ },
+ {
+  "id": "plan_home_fiber",
+  "type": "plan",
+  "name": "Telekom Home Fiber 500",
+  "brand": "Telekom",
+  "description": "Fibre-optic home internet with 500 Mbps download, 100 Mbps upload and a WiFi 6 router included. Unlimited data for 4K streaming, home office, cloud gaming and smart home devices.",
+  "category": "plans",
+  "price_onetime": 0,
+  "price_monthly": 44.95,
+  "original_price": 0,
+  "discount_pct": 0,
+  "rating": 4.3,
+  "review_count": 9876,
+  "colors": [],
+  "model_year": 2024,
+  "warranty_months": 0,
+  "stock": 60,
+  "in_stock": true,
+  "popularity": 0.69,
+  "features": [
+   "fiber",
+   "wifi_6_router",
+   "unlimited_data",
+   "landline_flat"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "data_gb": 999,
+   "speed_mbps": 500,
+   "contract_months": 24,
+   "eu_roaming": false,
+   "five_g": false,
+   "hotspot": false,
+   "streaming_bonus": "magenta_tv_option"
+  },
+  "subcategory": "home_internet"
+ },
+ {
+  "id": "bundle-iphone15-plan-l",
+  "type": "bundle",
+  "name": "iPhone 15 128GB + Telekom Mobil L Bundle",
+  "brand": "Telekom",
+  "description": "Get the iPhone 15 for just 1 euro upfront combined with the Telekom Mobil L tariff: 50GB of 5G data, EU roaming and Disney+ bonus. Save 248 euros over 24 months versus buying separately.",
+  "category": "bundles",
+  "price_onetime": 1.0,
+  "price_monthly": 64.95,
+  "original_price": 1.0,
+  "discount_pct": 0,
+  "rating": 4.6,
+  "review_count": 2310,
+  "colors": [
+   "black",
+   "blue",
+   "pink"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 20,
+  "in_stock": true,
+  "popularity": 0.85,
+  "features": [
+   "5g",
+   "eu_roaming",
+   "bundle_savings",
+   "esim",
+   "streaming_bonus"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1616348436168-de43ad0db179?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "included_product_ids": [
+    "phone-iphone-15-128",
+    "plan_l"
+   ],
+   "bundle_savings_eur": 248.0
+  },
+  "subcategory": "bundle"
+ },
+ {
+  "id": "bundle-galaxy-s24-watch-plan-m",
+  "type": "bundle",
+  "name": "Galaxy S24 + Galaxy Watch 6 + Telekom Mobil M Bundle",
+  "brand": "Telekom",
+  "description": "Complete Samsung ecosystem starter: Galaxy S24 with AI features, Galaxy Watch 6 for health tracking and the Telekom Mobil M tariff with 25GB of 5G data. Save over 170 euros versus buying separately.",
+  "category": "bundles",
+  "price_onetime": 99.0,
+  "price_monthly": 59.95,
+  "original_price": 99.0,
+  "discount_pct": 0,
+  "rating": 4.5,
+  "review_count": 1245,
+  "colors": [
+   "black"
+  ],
+  "model_year": 2024,
+  "warranty_months": 24,
+  "stock": 12,
+  "in_stock": true,
+  "popularity": 0.72,
+  "features": [
+   "5g",
+   "eu_roaming",
+   "bundle_savings",
+   "esim",
+   "ai_features"
+  ],
+  "compatible_plans": [],
+  "image_url": "https://images.unsplash.com/photo-1522125670776-3c7abb882bc2?w=400&h=400&fit=crop&auto=format",
+  "attributes": {
+   "included_product_ids": [
+    "phone-galaxy-s24-256",
+    "wearable-galaxy-watch6-44",
+    "plan_m"
+   ],
+   "bundle_savings_eur": 171.4
+  },
+  "subcategory": "bundle"
+ }
 ]
