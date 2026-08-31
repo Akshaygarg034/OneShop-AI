@@ -1,75 +1,127 @@
-"""
-SINGLE SOURCE OF TRUTH for all data shapes that pass between the 4 slices.
-
-RULES:
-  - Everyone imports shapes from here. Nobody invents their own.
-  - Changing this file is a TEAM decision. Announce it, then everyone pulls.
-  - Your AI assistant must be told: "All data must conform to these contracts."
-
-Owned by: SHARED (agreed together in Hour 0).
-"""
+"""Shared data contracts for the API and agent pipeline."""
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 
 class ProductType(str, Enum):
     phone = "phone"
-    plan = "plan"
+    tablet = "tablet"
+    laptop = "laptop"
+    wearable = "wearable"
+    audio = "audio"
     accessory = "accessory"
+    plan = "plan"
     bundle = "bundle"
 
 
+# Product types billed as a recurring monthly commitment; everything else is one-time.
+MONTHLY_TYPES = {ProductType.plan, ProductType.bundle}
+
+
 class Product(BaseModel):
-    """A catalog item. Owned by P2 (data/catalog.json)."""
     id: str
     type: ProductType
     name: str
     brand: str = ""
     description: str = ""
-    price_monthly: float = 0.0          # for device-on-plan / plans
-    price_onetime: float = 0.0          # upfront device price
     category: str = ""
+    subcategory: str = ""
+    price_onetime: float = 0.0
+    price_monthly: float = 0.0
+    original_price: float = 0.0
+    discount_pct: int = 0
+    rating: float = 0.0
+    review_count: int = 0
+    colors: list[str] = Field(default_factory=list)
+    model_year: int = 0
+    warranty_months: int = 0
     features: list[str] = Field(default_factory=list)
     compatible_plans: list[str] = Field(default_factory=list)
-    stock: int = 0                      # LIVE fact - checked, never embedded
+    stock: int = 0
     in_stock: bool = True
-    image_url: str = ""                 # display image for the frontend
-    popularity: float = 0.5             # merchandising-curated prior in [0,1]. Used ONLY to
-                                         # break ties when we have no personalization signal yet
-                                         # (cold start) - in production this would be a real
-                                         # "recent sales velocity" metric refreshed by an offline
-                                         # job, never a stand-in for eligibility or a fake ML score.
+    image_url: str = ""
+    popularity: float = 0.5
+    attributes: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def is_monthly(self) -> bool:
+        return self.type in MONTHLY_TYPES
+
+    @property
+    def effective_price(self) -> float:
+        """The price a budget constraint compares against."""
+        return self.price_monthly if self.is_monthly else self.price_onetime
 
 
-class PreferenceProfile(BaseModel):
-    """Session-level learned preferences. Owned by P1, persisted by P4."""
-    budget_monthly_max: Optional[float] = None
-    brands_viewed: list[str] = Field(default_factory=list)
-    features_mentioned: list[str] = Field(default_factory=list)
-    categories_browsed: list[str] = Field(default_factory=list)
-    rejected: list[str] = Field(default_factory=list)
+# Closed vocabularies, enforced in the LLM extraction schema so an off-catalog
+# value ("smartphone" instead of "phone") can never silently match nothing.
+ProductTypeName = Literal["phone", "tablet", "laptop", "wearable", "audio", "accessory", "plan", "bundle"]
+CategoryName = Literal["smartphones", "tablets", "laptops", "wearables", "audio", "accessories", "plans", "bundles"]
+# The level shoppers actually ask at: "speakers", "a smartwatch", "a phone case".
+SubcategoryName = Literal[
+    "smartphone", "tablet", "laptop", "smartwatch", "fitness_band",
+    "earbuds", "headphones", "neckband", "speaker",
+    "case", "charger", "cable", "powerbank", "screen_protector", "mount", "hub",
+    "mobile_plan", "home_internet", "bundle",
+]
 
 
-class Intent(BaseModel):
-    """Output of P1's intent step."""
-    use_case: str = ""
-    budget_monthly_max: Optional[float] = None
-    brand: Optional[str] = None          # explicit brand ask (e.g. "Apple") -> HARD filter
-    priority_features: list[str] = Field(default_factory=list)
-    product_types: list[str] = Field(default_factory=list)  # explicit type ask -> HARD filter
-    is_shopping_related: bool = True
-    is_greeting: bool = False            # bare "hi"/"hello" - gets a welcome reply, not a search
-    clarification_needed: bool = False
-    clarification_question: Optional[str] = None
-    profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
+_CATEGORIES = {"smartphones", "tablets", "laptops", "wearables", "audio", "accessories", "plans", "bundles"}
+
+TYPE_TO_CATEGORY: dict[str, str] = {
+    "phone": "smartphones", "tablet": "tablets", "laptop": "laptops", "wearable": "wearables",
+    "audio": "audio", "accessory": "accessories", "plan": "plans", "bundle": "bundles",
+}
+
+SUBCATEGORY_TO_CATEGORY: dict[str, str] = {
+    "smartphone": "smartphones", "tablet": "tablets", "laptop": "laptops",
+    "smartwatch": "wearables", "fitness_band": "wearables",
+    "earbuds": "audio", "headphones": "audio", "neckband": "audio", "speaker": "audio",
+    "case": "accessories", "charger": "accessories", "cable": "accessories",
+    "powerbank": "accessories", "screen_protector": "accessories", "mount": "accessories",
+    "hub": "accessories", "mobile_plan": "plans", "home_internet": "plans", "bundle": "bundles",
+}
+
+
+def normalize_category(name: str) -> Optional[str]:
+    """Map a category/subcategory/type word onto a canonical category name."""
+    name = name.strip().lower()
+    if name in _CATEGORIES:
+        return name
+    return SUBCATEGORY_TO_CATEGORY.get(name) or TYPE_TO_CATEGORY.get(name)
+
+
+class AttributeConstraint(BaseModel):
+    """One structured constraint extracted from the user's query,
+    e.g. {name: 'ram_gb', op: 'gte', number: 8} or {name: 'color', op: 'in', values: ['black']}."""
+    name: str
+    op: Literal["gte", "lte", "eq", "in"]
+    number: Optional[float] = None
+    values: Optional[list[str]] = None
+
+
+class QueryFilters(BaseModel):
+    """Deterministic constraints for this turn. Enforced by the eligibility engine."""
+    product_types: list[ProductTypeName] = Field(default_factory=list)
+    categories: list[CategoryName] = Field(default_factory=list)
+    subcategories: list[SubcategoryName] = Field(default_factory=list)
+    brands_include: list[str] = Field(default_factory=list)
+    brands_exclude: list[str] = Field(default_factory=list)
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    price_period: Optional[Literal["onetime", "monthly"]] = None
+    colors: list[str] = Field(default_factory=list)
+    attributes: list[AttributeConstraint] = Field(default_factory=list)
+    min_rating: Optional[float] = None
+    on_sale_only: bool = False
+    in_stock_only: bool = True
 
 
 class EligibleProduct(BaseModel):
-    """Output of P2's deterministic eligibility engine."""
     product: Product
     eligible: bool = True
     reasons: list[str] = Field(default_factory=list)
@@ -77,59 +129,41 @@ class EligibleProduct(BaseModel):
 
 
 class Recommendation(BaseModel):
-    """Output of P3's ranking + explanation."""
     product_id: str
     rank: int = 0
     score: float = 0.0
-    why: str = ""
     bundle: list[str] = Field(default_factory=list)
-    confidence: float = 0.0             # 0-100, a direct re-expression of `signals` below -
-                                         # never a separate invented metric or fake model name.
-    signals: dict[str, float] = Field(default_factory=dict)   # named contributions that were
-                                         # weighted-summed into `score`: relevance / preference /
-                                         # budget / popularity. This is what backs an honest
-                                         # "why this?" panel - real numbers, not marketing copy.
-    personalization_basis: str = "cold_start"   # "cold_start" (no profile signal yet - ranked by
-                                         # retrieval relevance + merchandising prior) or
-                                         # "personalized" (biased by this user's learned profile).
-
-
-class RankedProduct(Product):
-    """A catalog product annotated with this session's live ranking, for the
-    browse view. Same scoring engine as chat recommendations
-    (recommend.rank_products), just applied to the whole catalog instead of
-    the top 3 - one recommendation engine in the codebase, not two."""
     confidence: float = 0.0
     signals: dict[str, float] = Field(default_factory=dict)
     personalization_basis: str = "cold_start"
-    why: str = ""
+
+
+class RankedProduct(Product):
+    """Product annotated with the session's live ranking, for the browse view."""
+    confidence: float = 0.0
+    signals: dict[str, float] = Field(default_factory=dict)
+    personalization_basis: str = "cold_start"
 
 
 class CartItem(BaseModel):
     product_id: str
     qty: int = 1
     price: float = 0.0
-    name: str = ""                       # denormalised for display / omnichannel
-    billing: str = "onetime"             # "onetime" (accessories) | "monthly" (phones/plans)
+    name: str = ""
+    billing: Literal["onetime", "monthly"] = "onetime"
 
 
 class Cart(BaseModel):
-    """Owned by P4.
-
-    Telekom sells one-time goods (accessories) AND monthly commitments (phones on a
-    plan, tariffs). We track both:
-      - subtotal:      sum of ONE-TIME item prices -> drives the free-shipping nudge.
-      - monthly_total: sum of MONTHLY item prices  -> the recurring commitment.
-    """
     session_id: str
     items: list[CartItem] = Field(default_factory=list)
-    subtotal: float = 0.0                # one-time goods total
-    monthly_total: float = 0.0           # recurring monthly total
+    subtotal: float = 0.0
+    monthly_total: float = 0.0
     free_shipping_threshold: float = 50.0
 
 
 class Receipts(BaseModel):
-    """The 'keep receipts' trust feature - what happened this turn."""
+    """Transparency record of what happened this turn: what was retrieved,
+    which deterministic rules fired, and what was actually shown."""
     retrieved_ids: list[str] = Field(default_factory=list)
     rules_fired: list[str] = Field(default_factory=list)
     shown_ids: list[str] = Field(default_factory=list)
@@ -138,40 +172,39 @@ class Receipts(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     message: str
-    conversation_id: Optional[str] = None  # omit to start a new conversation
+    conversation_id: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    reply_text: str
+    recommendations: list[Recommendation] = Field(default_factory=list)
+    products: list[Product] = Field(default_factory=list)
+    nba: list[str] = Field(default_factory=list)
+    cart: Cart
+    receipts: Receipts = Field(default_factory=Receipts)
+    conversation_id: str = ""
 
 
 class ChatHistoryMessage(BaseModel):
     role: str
     content: str
-    recommendations: list[dict] = Field(default_factory=list)  # persisted so product cards can be restored
+    recommendations: list[dict] = Field(default_factory=list)
+    created_at: str = ""
 
 
 class ChatHistoryResponse(BaseModel):
-    """Persisted conversation for a specific conversation thread."""
     session_id: str
     conversation_id: str = ""
     history: list[ChatHistoryMessage] = Field(default_factory=list)
 
 
+class ConversationSummary(BaseModel):
+    id: str
+    title: str = ""
+    updated_at: str = ""
+
+
 class ChatConversationsResponse(BaseModel):
-    """List of conversation IDs under a session."""
     session_id: str
     conversation_ids: list[str] = Field(default_factory=list)
-
-
-class SessionProfileResponse(BaseModel):
-    """The preference profile the assistant has learned for this session/user -
-    exposed so personalization is visible and testable."""
-    session_id: str
-    profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
-
-
-class ChatResponse(BaseModel):
-    """The one object the /chat endpoint returns. The whole app depends on this."""
-    reply_text: str
-    recommendations: list[Recommendation] = Field(default_factory=list)
-    nba: list[str] = Field(default_factory=list)          # next-best-action nudges
-    cart: Cart
-    receipts: Receipts = Field(default_factory=Receipts)
-    conversation_id: str = ""                              # echoed back so client can track the thread
+    conversations: list[ConversationSummary] = Field(default_factory=list)

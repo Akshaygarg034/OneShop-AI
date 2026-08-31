@@ -1,204 +1,337 @@
+"""The chat agent: a LangGraph StateGraph.
+
+    load_context → understand → (route by intent)
+        shopping        → retrieve → evaluate → rank → respond_shopping → persist
+        greeting        → respond_greeting → persist
+        off_topic       → respond_off_topic → persist
+        clarify         → respond_clarify → persist
+        preference_only → respond_preference → persist
+        cart_question   → respond_cart → persist
+
+Guardrail: recommendations can only reference products the deterministic
+eligibility engine approved — enforced when ranking and re-checked before the
+response is assembled.
 """
-The pipeline orchestrator. Owned by P1.
+from __future__ import annotations
 
-This is the BACKBONE that ties all 4 slices together:
-    intent (P1) -> retrieve (P2) -> filter_eligible (P2) -> recommend (P3) -> response
-
-Right now it's a plain function calling each step. That's intentional for mock-first:
-the whole app works today. P1's REAL job is to convert this into a LangGraph StateGraph
-(nodes = steps, edges = flow, with a branch for clarification and retry). The node
-functions stay the same - only the wiring changes.
-
-GUARDRAIL enforced here: recommendations may only reference eligible product ids.
-"""
+import asyncio
 import logging
-import uuid
+from typing import Optional, TypedDict
 
-from app.agents.intent import extract_intent
-from app.agents.profile import update_profile
-from app.config import MOCK_MODE
-from app.contracts.models import ChatResponse, Receipts
-from app.engine.eligibility import filter_eligible
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, START, StateGraph
+
+from app.agents import respond
+from app.agents.schemas import Understanding
+from app.agents.understand import understand
+from app.config import get_settings
+from app.contracts.models import (
+    Cart,
+    ChatResponse,
+    EligibleProduct,
+    Product,
+    QueryFilters,
+    Receipts,
+    Recommendation,
+)
+from app.conversations.memory import index_message, recall, update_summary_if_due
+from app.conversations.store import Message, conversation_store
+from app.engine.eligibility import effective_filters, filter_eligible
+from app.preferences.engine import apply_deltas, decayed
+from app.preferences.models import Preferences
+from app.preferences.store import preference_store
 from app.recommend.recommender import recommend
 from app.retrieval.retriever import retrieve
+from app.session.store import session_store
 
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline(message: str, session, conversation_id: str) -> ChatResponse:
-    # Each conversation is a separate thread with its own history for AI context.
-    # Profile is global across conversations (accumulated learnings persist).
-    conv_history = session.get_conversation(conversation_id)
+class AgentState(TypedDict, total=False):
+    session_id: str
+    conversation_id: str
+    message: str
+    cart: Cart
+    prefs: Preferences
+    summary: str
+    recent: list[Message]
+    recall: list[str]
+    recently_shown: list[str]
+    understanding: Understanding
+    filters: QueryFilters
+    candidates: list[Product]
+    evaluated: list[EligibleProduct]
+    recommendations: list[Recommendation]
+    products: list[Product]
+    nba: list[str]
+    reply: str
+    receipts: Receipts
+    all_seen: bool
 
-    # 1. Understand + learn (P1)
-    # Pass THIS thread's history (loaded fresh from the persisted session) so
-    # multi-turn context survives restarts without bleeding across unrelated
-    # conversation threads.
-    intent = extract_intent(message, conv_history, session.profile)
 
-    # A bare "hi"/"hello" gets a warm, engaging welcome - not a search (there's
-    # nothing to search for yet) and not the scope refusal (a greeting is
-    # always on-topic - it's the start of a shopping conversation).
-    if intent.is_greeting:
-        reply = _greeting_reply()
-        conv_history.append({"role": "user", "content": message})
-        conv_history.append({"role": "assistant", "content": reply, "recommendations": []})
-        return ChatResponse(
-            reply_text=reply,
-            recommendations=[],
-            nba=[],
-            cart=session.cart,
-            receipts=Receipts(),
-            conversation_id=conversation_id,
-        )
+async def _load_context(state: AgentState) -> AgentState:
+    settings = get_settings()
+    session_id = state["session_id"]
+    conversation_id = state["conversation_id"]
+    store = conversation_store()
 
-    # Scope guard: this assistant only answers Telekom shopping questions. Do
-    # not search the catalog (or fabricate a product answer) for unrelated asks.
-    if not intent.is_shopping_related:
-        reply = (
-            "I’m here to help with Telekom shopping—phones, plans, bundles, and "
-            "accessories. I can’t help with that question, but I’d be happy to "
-            "help you find the right product or plan."
-        )
-        conv_history.append({"role": "user", "content": message})
-        conv_history.append({"role": "assistant", "content": reply, "recommendations": []})
-        return ChatResponse(
-            reply_text=reply,
-            recommendations=[],
-            nba=[],
-            cart=session.cart,
-            receipts=Receipts(),
-            conversation_id=conversation_id,
-        )
+    cart, prefs, meta = await asyncio.gather(
+        session_store().get_cart(session_id),
+        preference_store().get(session_id),
+        store.get_meta(conversation_id),
+    )
 
-    session.profile = update_profile(session.profile, message, intent)
-    intent.profile = session.profile
+    recent: list[Message] = []
+    summary = ""
+    if meta is not None:
+        recent = await store.recent(conversation_id, settings.history_window)
+        summary = meta.summary
 
-    # 1a. Ask instead of guess (trust behaviour)
-    if intent.clarification_needed:
-        conv_history.append({"role": "user", "content": message})
-        conv_history.append({"role": "assistant", "content": intent.clarification_question, "recommendations": []})
-        return ChatResponse(
-            reply_text=intent.clarification_question,
-            recommendations=[],
-            nba=[],
-            cart=session.cart,
-            receipts=Receipts(),
-            conversation_id=conversation_id,
-        )
+    # Products shown earlier in this thread (most recent last) — the deterministic
+    # basis for "show me something other than these" requests.
+    recently_shown: list[str] = []
+    for m in recent:
+        if m.role == "assistant":
+            for rec in m.recommendations:
+                pid = rec.get("product_id")
+                if pid and pid not in recently_shown:
+                    recently_shown.append(pid)
 
-    # 2. Find candidates (P2)
-    candidates = retrieve(intent)
+    # Semantic recall only pays off when there's history beyond the verbatim window.
+    recalled: list[str] = []
+    has_older_turns = meta is not None and meta.message_count > settings.history_window
+    has_other_threads = meta is None and bool(await store.list_ids(session_id))
+    if has_older_turns or has_other_threads:
+        recalled = await recall(session_id, state["message"])
 
-    # 3. Filter to what's actually offerable - SOURCE OF TRUTH (P2). This is
-    # also where a HARD scope to what THIS turn explicitly asked for happens
-    # (brand_mismatch / wrong_type in eligibility.py) - without it, a
-    # session-wide learned preference (e.g. "camera" from an earlier phone
-    # question) keeps outscoring the very plans/accessories being asked about
-    # right now, since rank_products()'s `preference` signal reads the whole
-    # accumulated profile, not just this message. A budget or feature
-    # mentioned earlier should keep biasing ranking WITHIN a category; it
-    # should never hijack the category itself.
-    evaluated = filter_eligible(candidates, intent)
+    return {
+        "cart": cart, "prefs": prefs, "summary": summary,
+        "recent": recent, "recall": recalled, "recently_shown": recently_shown,
+    }
+
+
+async def _understand(state: AgentState) -> AgentState:
+    prefs = state["prefs"]
+    understanding = await understand(
+        state["message"], state["summary"], state["recent"], state["recall"], prefs,
+    )
+    prefs = apply_deltas(prefs, understanding.preference_deltas)
+    filters = effective_filters(understanding.filters, prefs, browse_all=understanding.wants_all)
+    return {"understanding": understanding, "prefs": prefs, "filters": filters}
+
+
+def _route(state: AgentState) -> str:
+    return state["understanding"].intent
+
+
+async def _retrieve(state: AgentState) -> AgentState:
+    candidates = await retrieve(state["filters"], state["understanding"].semantic_query)
+    return {"candidates": candidates}
+
+
+async def _evaluate(state: AgentState) -> AgentState:
+    evaluated = filter_eligible(state["candidates"], state["filters"], state["prefs"])
+
+    # "Show me something OTHER than these": drop products already shown in this
+    # thread. Deterministic — the ids come from persisted turns, never the LLM.
+    if state["understanding"].exclude_shown:
+        shown = set(state.get("recently_shown", []))
+        for e in evaluated:
+            if e.product.id in shown:
+                e.eligible = False
+                e.failed_rules.append("already_shown")
+    return {"evaluated": evaluated}
+
+
+async def _rank(state: AgentState) -> AgentState:
+    settings = get_settings()
+    understanding = state["understanding"]
+    evaluated = state["evaluated"]
     eligible = [e for e in evaluated if e.eligible]
 
-    # 4. Rank + explain + nudge (P3)
-    recs, nba = recommend(eligible, session.profile, session.cart)
+    # "Show me others" when everything matching has already been shown: don't
+    # dead-end — re-show the complete matching set and say so honestly.
+    all_seen = False
+    if not eligible and understanding.exclude_shown:
+        rescued = [e for e in evaluated if e.failed_rules == ["already_shown"]]
+        if rescued:
+            for e in rescued:
+                e.eligible = True
+                e.failed_rules = []
+            eligible = rescued
+            all_seen = True
 
-    # 4a. GUARDRAIL: the LLM can never introduce a product the engine rejected.
-    eligible_ids = {e.product.id for e in eligible}
-    recs = [r for r in recs if r.product_id in eligible_ids]
+    requested = understanding.requested_count
+    if all_seen or understanding.wants_all:
+        count = min(max(len(eligible), 1), settings.max_recommendations)
+    elif requested > 0:
+        count = min(requested, settings.max_recommendations)
+    else:
+        count = settings.recommendation_count
 
-    # 5. Compose reply + receipts
-    reply = _compose_reply(recs, eligible, intent)
-    receipts = Receipts(
-        retrieved_ids=[c.id for c in candidates],
-        rules_fired=sorted({rule for e in evaluated for rule in (e.reasons + e.failed_rules)}),
-        shown_ids=[r.product_id for r in recs],
+    ranking_prefs = decayed(state["prefs"])
+    recommendations, nba = await recommend(
+        eligible, ranking_prefs, state["cart"], count=count,
+        exhaustive=all_seen or understanding.wants_all or requested > 0,
     )
 
-    # Record turn; persist recommendations so the frontend can restore product cards from history.
-    # IMPORTANT: store the nudges (nba) as part of the assistant content too. They're
-    # shown to the user, so a follow-up like "yes" refers to them - if we only stored
-    # `reply`, the next turn's intent extraction couldn't resolve what "yes" meant.
-    assistant_content = reply + (("\n\n" + "\n".join(nba)) if nba else "")
-    conv_history.append({"role": "user", "content": message})
-    conv_history.append({
-        "role": "assistant",
-        "content": assistant_content,
-        "recommendations": [r.model_dump() for r in recs],
-    })
+    # Guardrail: never surface a product the engine rejected.
+    eligible_ids = {e.product.id for e in eligible}
+    recommendations = [r for r in recommendations if r.product_id in eligible_ids]
 
+    by_id = {e.product.id: e.product for e in eligible}
+    products = [by_id[r.product_id] for r in recommendations]
+    receipts = Receipts(
+        retrieved_ids=[c.id for c in state["candidates"]],
+        rules_fired=sorted({rule for e in evaluated for rule in (e.reasons + e.failed_rules)}),
+        shown_ids=[r.product_id for r in recommendations],
+    )
+    return {
+        "recommendations": recommendations, "products": products,
+        "nba": nba, "receipts": receipts, "all_seen": all_seen,
+    }
+
+
+def _stream_handler(config: RunnableConfig) -> respond.StreamHandler:
+    return (config.get("configurable") or {}).get("stream_handler")
+
+
+async def _respond_shopping(state: AgentState, config: RunnableConfig) -> AgentState:
+    stream = _stream_handler(config)
+    recommendations = state["recommendations"]
+    if not recommendations:
+        reply = respond.no_results_reply(state["understanding"], state["evaluated"])
+        if stream:
+            await stream(reply)
+        return {"reply": reply}
+    if state.get("all_seen"):
+        reply = respond.all_seen_reply(len(recommendations))
+        if stream:
+            await stream(reply)
+        return {"reply": reply}
+    products = {p.id: p for p in state["products"]}
+    reply = await respond.compose_shopping_reply(
+        state["message"], state["understanding"], recommendations, products, state["prefs"], stream,
+    )
+    return {"reply": reply}
+
+
+async def _static_reply(state: AgentState, config: RunnableConfig, reply: str) -> AgentState:
+    stream = _stream_handler(config)
+    if stream:
+        await stream(reply)
+    return {"reply": reply}
+
+
+async def _respond_greeting(state: AgentState, config: RunnableConfig) -> AgentState:
+    return await _static_reply(state, config, respond.GREETING_REPLY)
+
+
+async def _respond_off_topic(state: AgentState, config: RunnableConfig) -> AgentState:
+    return await _static_reply(state, config, respond.OFF_TOPIC_REPLY)
+
+
+async def _respond_clarify(state: AgentState, config: RunnableConfig) -> AgentState:
+    question = state["understanding"].clarification_question or (
+        "Could you tell me a bit more — what type of product, and roughly what budget?"
+    )
+    return await _static_reply(state, config, question)
+
+
+async def _respond_preference(state: AgentState, config: RunnableConfig) -> AgentState:
+    reply = respond.preference_only_reply(state["prefs"], state["understanding"])
+    return await _static_reply(state, config, reply)
+
+
+async def _respond_cart(state: AgentState, config: RunnableConfig) -> AgentState:
+    return await _static_reply(state, config, respond.cart_question_reply(state["cart"]))
+
+
+async def _persist(state: AgentState) -> AgentState:
+    session_id = state["session_id"]
+    conversation_id = state["conversation_id"]
+    store = conversation_store()
+
+    reply = state.get("reply", "")
+    nba = state.get("nba", [])
+    # Nudges are shown to the user, so they're stored as part of the assistant turn —
+    # a follow-up "yes" must be resolvable against them.
+    assistant_content = reply + (("\n\n" + "\n".join(nba)) if nba else "")
+    rec_dumps = [r.model_dump() for r in state.get("recommendations", [])]
+
+    user_msg = await store.append(session_id, conversation_id, "user", state["message"])
+    assistant_msg = await store.append(
+        session_id, conversation_id, "assistant", assistant_content, rec_dumps,
+    )
+    await preference_store().save(session_id, state["prefs"])
+
+    # Non-critical long-term-memory work happens off the request path.
+    # It needs the full stack (Qdrant + OpenAI), which memory-backend runs don't have.
+    if get_settings().uses_supabase:
+        asyncio.create_task(index_message(user_msg))
+        asyncio.create_task(index_message(assistant_msg))
+        asyncio.create_task(update_summary_if_due(conversation_id))
+    return {}
+
+
+def _build_graph():
+    graph = StateGraph(AgentState)
+    graph.add_node("load_context", _load_context)
+    graph.add_node("understand", _understand)
+    graph.add_node("retrieve", _retrieve)
+    graph.add_node("evaluate", _evaluate)
+    graph.add_node("rank", _rank)
+    graph.add_node("respond_shopping", _respond_shopping)
+    graph.add_node("respond_greeting", _respond_greeting)
+    graph.add_node("respond_off_topic", _respond_off_topic)
+    graph.add_node("respond_clarify", _respond_clarify)
+    graph.add_node("respond_preference", _respond_preference)
+    graph.add_node("respond_cart", _respond_cart)
+    graph.add_node("persist", _persist)
+
+    graph.add_edge(START, "load_context")
+    graph.add_edge("load_context", "understand")
+    graph.add_conditional_edges("understand", _route, {
+        "shopping": "retrieve",
+        "greeting": "respond_greeting",
+        "off_topic": "respond_off_topic",
+        "clarify": "respond_clarify",
+        "preference_only": "respond_preference",
+        "cart_question": "respond_cart",
+    })
+    graph.add_edge("retrieve", "evaluate")
+    graph.add_edge("evaluate", "rank")
+    graph.add_edge("rank", "respond_shopping")
+    for node in ("respond_shopping", "respond_greeting", "respond_off_topic",
+                 "respond_clarify", "respond_preference", "respond_cart"):
+        graph.add_edge(node, "persist")
+    graph.add_edge("persist", END)
+    return graph.compile()
+
+
+_agent = _build_graph()
+
+
+async def run_turn(
+    session_id: str,
+    message: str,
+    conversation_id: str,
+    stream_handler: respond.StreamHandler = None,
+) -> ChatResponse:
+    """Execute one chat turn and assemble the API response."""
+    state: AgentState = {
+        "session_id": session_id,
+        "conversation_id": conversation_id,
+        "message": message,
+    }
+    config: RunnableConfig = {"configurable": {"stream_handler": stream_handler}}
+    final = await _agent.ainvoke(state, config)
     return ChatResponse(
-        reply_text=reply,
-        recommendations=recs,
-        nba=nba,
-        cart=session.cart,
-        receipts=receipts,
+        reply_text=final.get("reply", ""),
+        recommendations=final.get("recommendations", []),
+        products=final.get("products", []),
+        nba=final.get("nba", []),
+        cart=final["cart"],
+        receipts=final.get("receipts", Receipts()),
         conversation_id=conversation_id,
     )
-
-
-_GREETING_TEMPLATE = (
-    "Hey there, welcome to OneShop! I'm your personal shopping assistant — think "
-    "of me as your own Telekom sales advisor. I can help you find the right "
-    "phone, the best MagentaMobil plan, or accessories to go with it, all "
-    "matched to your budget and what matters to you (camera, gaming, EU travel "
-    "data, you name it). What are you in the market for today?"
-)
-
-_GREETING_SYSTEM_PROMPT = """You are an enthusiastic, friendly Telekom shopping \
-assistant greeting a customer who just said hello. Write ONE short, warm,
-engaging reply (2-3 sentences) like a great, personable salesperson: welcome
-them, briefly mention you help with phones, plans, and accessories, and invite
-them to share what they're looking for (budget, use case, or a specific
-product). Do NOT recommend a specific product yet - you don't know what they
-want. Output ONLY the reply text, no quotes, no preamble, no emoji."""
-
-
-def _greeting_reply() -> str:
-    if MOCK_MODE:
-        return _GREETING_TEMPLATE
-    try:
-        return _greeting_openai()
-    except Exception as e:  # noqa - a bad call must not break the greeting
-        logger.warning("OpenAI greeting generation failed (%s); using template.", e)
-        return _GREETING_TEMPLATE
-
-
-def _greeting_openai() -> str:
-    from openai import OpenAI
-
-    from app.config import OPENAI_API_KEY, OPENAI_MODEL
-
-    if not OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY not set")
-
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    resp = client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=[{"role": "system", "content": _GREETING_SYSTEM_PROMPT}],
-        temperature=0.7,
-        max_tokens=100,
-        timeout=15,
-    )
-    text = (resp.choices[0].message.content or "").strip()
-    if not text:
-        raise RuntimeError("empty response from OpenAI")
-    return text
-
-
-def _compose_reply(recs, eligible, intent) -> str:
-    if not eligible:
-        # Brand-aware, honest refusal - the deterministic engine found nothing
-        # offerable, and we say so rather than silently swapping in something else.
-        subject = f"{intent.brand} option" if intent.brand else "option"
-        budget = f" under €{int(intent.budget_monthly_max)}/mo" if intent.budget_monthly_max else ""
-        return (
-            f"I couldn't find an in-stock {subject}{budget} that fits. "
-            "Want me to relax the budget, or show the closest alternatives?"
-        )
-    if not recs:
-        return "I found some options but need a bit more detail to recommend the best one."
-    lead = "Here's my top pick" if len(recs) == 1 else "Here are my top picks"
-    return f"{lead} — {recs[0].why}"
