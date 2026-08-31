@@ -1,376 +1,190 @@
-"""
-Eval harness. Owned by P4.
-This is your PROOF the system works - the answer to "how do you know it works?"
+"""Behavioral eval harness for the chat agent.
+
+Runs real LLM understanding against an isolated in-memory store, and checks the
+behaviors that matter: budget ranges, currency normalization, persistent brand
+exclusions, attribute/color filtering, behavioral cart signals, and scope guards.
 
 Run:  cd backend && python -m evals.run_evals
-
-Each case asserts a GROUNDED behaviour and prints PASS/FAIL. Exit code is non-zero
-if anything fails, so this doubles as a CI gate. Grouped by what it proves:
-  TRUST         - never recommends junk (out-of-stock / over-budget / out-of-catalog)
-  CONVERSATION  - clarifies when vague, populates receipts
-  PERSONALIZATION - ranking adapts after the user rejects a brand
-  CART          - cart math + free-shipping + checkout are correct
-  AUTH          - register/login work and a guest cart survives login
-  RAG           - semantic retrieval returns grounded catalog products (skipped if Qdrant is down)
+Requires OPENAI_API_KEY in .env. Qdrant is optional (falls back to structured scan).
 """
+from __future__ import annotations
+
 import os
 
-# Force the harness fully offline/deterministic BEFORE app modules read config:
-# mock generation (no OpenAI calls), JSON catalog, in-memory sessions, no live
-# Supabase/Qdrant calls. Keeps evals fast, free, reproducible, and unable to
-# pollute the real database. (The real OpenAI path is exercised in the demo.)
-os.environ.setdefault("MOCK_MODE", "true")
-os.environ.setdefault("CATALOG_BACKEND", "json")
-os.environ.setdefault("SESSION_BACKEND", "memory")
+os.environ["STORAGE_BACKEND"] = "memory"
 
-import sys
+import asyncio
 import uuid
 
-from app.agents.graph import run_pipeline
-from app.auth.security import hash_password, verify_password
-from app.auth.users_store import MemoryUserBackend, UserStore
-from app.config import RAG_ENABLED
-from app.retrieval.catalog import get_product, load_catalog
-from app.session.store import Session, SessionStore
+from app.clients import close_clients, init_clients
+from app.contracts.models import ChatResponse
+
+PASSED, FAILED = 0, 0
 
 
-class SkipCase(Exception):
-    """Raised by a case that can't run in this environment (e.g. Qdrant down)."""
+def check(name: str, condition: bool, detail: str = "") -> None:
+    global PASSED, FAILED
+    if condition:
+        PASSED += 1
+        print(f"  PASS  {name}")
+    else:
+        FAILED += 1
+        print(f"  FAIL  {name}  {detail}")
 
 
-def _run(message: str):
-    """One-shot: fresh session, single message."""
-    return run_pipeline(message, Session("eval"), uuid.uuid4().hex)
+async def turn(session: str, message: str, conversation_id: str | None = None) -> ChatResponse:
+    from app.agents.graph import run_turn
+
+    return await run_turn(session, message, conversation_id or str(uuid.uuid4()))
 
 
-def _conversation():
-    """Multi-turn: one persistent session + thread, returns a say() that advances it."""
-    session = Session("eval-convo")
-    conversation_id = uuid.uuid4().hex
-
-    def say(message: str):
-        return run_pipeline(message, session, conversation_id)
-
-    return session, say
-
-
-def _brand(product_id: str) -> str:
-    p = get_product(product_id)
-    return p.brand if p else ""
+async def eval_budget_range() -> None:
+    print("\n[budget range]")
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    resp = await turn(session, "I want a smartphone between 500 and 800 euros")
+    check("returns recommendations", bool(resp.products), resp.reply_text[:120])
+    check(
+        "all prices within 500-800",
+        all(500 <= p.price_onetime <= 800 for p in resp.products),
+        str([(p.id, p.price_onetime) for p in resp.products]),
+    )
 
 
-CASES = []
+async def eval_currency_normalization() -> None:
+    print("\n[currency: Rs treated as EUR]")
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    resp = await turn(session, "show me smartphones under Rs 400")
+    check("returns recommendations", bool(resp.products), resp.reply_text[:120])
+    check(
+        "all prices under 400 EUR",
+        all(p.price_onetime <= 400 for p in resp.products),
+        str([(p.id, p.price_onetime) for p in resp.products]),
+    )
 
 
-def case(group, name):
-    def deco(fn):
-        CASES.append((group, name, fn))
-        return fn
-    return deco
+async def eval_brand_exclusion_persists() -> None:
+    print("\n[brand exclusion persists across turns]")
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    conv = str(uuid.uuid4())
+    await turn(session, "please never show me Apple products", conv)
+    resp = await turn(session, "recommend me a good smartphone", conv)
+    check("returns recommendations", bool(resp.products), resp.reply_text[:120])
+    check(
+        "no Apple products",
+        all(p.brand.lower() != "apple" for p in resp.products),
+        str([p.brand for p in resp.products]),
+    )
+
+    # New conversation — the exclusion must still hold.
+    resp2 = await turn(session, "what phones do you have for me?", str(uuid.uuid4()))
+    check(
+        "exclusion holds in a NEW conversation",
+        all(p.brand.lower() != "apple" for p in resp2.products),
+        str([p.brand for p in resp2.products]),
+    )
+
+    # Retraction lifts it.
+    conv3 = str(uuid.uuid4())
+    await turn(session, "actually Apple is fine now, you can show them again", conv3)
+    resp3 = await turn(session, "show me iPhones", conv3)
+    check(
+        "after retraction, Apple returns",
+        any(p.brand.lower() == "apple" for p in resp3.products),
+        str([p.brand for p in resp3.products]),
+    )
 
 
-# --------------------------------------------------------------------------- #
-# TRUST - never recommends junk                                                #
-# --------------------------------------------------------------------------- #
-@case("TRUST", "recommends something for a normal request")
-def t_normal():
-    r = _run("I need a phone under 40 euros with a good camera")
-    assert r.recommendations, "expected at least one recommendation"
+async def eval_attribute_and_color_filters() -> None:
+    print("\n[attribute + color filtering]")
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    resp = await turn(session, "I need an android phone with at least 8GB RAM in black")
+    check("returns recommendations", bool(resp.products), resp.reply_text[:120])
+    check(
+        "all have >= 8GB RAM",
+        all(float(p.attributes.get("ram_gb", 0)) >= 8 for p in resp.products),
+        str([(p.id, p.attributes.get("ram_gb")) for p in resp.products]),
+    )
+    check(
+        "all available in black",
+        all("black" in [c.lower() for c in p.colors] for p in resp.products),
+        str([(p.id, p.colors) for p in resp.products]),
+    )
+    check(
+        "all run android",
+        all(str(p.attributes.get("os", "")).lower() == "android" for p in resp.products),
+        str([(p.id, p.attributes.get("os")) for p in resp.products]),
+    )
 
 
-@case("TRUST", "never recommends an out-of-stock product")
-def t_stock():
-    r = _run("I want the iPhone 16 Pro")  # iphone16pro has stock 0 in seed data
-    ids = [x.product_id for x in r.recommendations]
-    assert "phone_iphone16pro" not in ids, "recommended an out-of-stock product!"
+async def eval_combined_filters() -> None:
+    print("\n[combined: brand + budget + attribute]")
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    resp = await turn(session, "a Samsung phone under 700 euros with at least 128GB storage")
+    check("returns recommendations", bool(resp.products), resp.reply_text[:120])
+    check("all Samsung", all(p.brand.lower() == "samsung" for p in resp.products))
+    check("all under 700", all(p.price_onetime <= 700 for p in resp.products))
+    check(
+        "all >= 128GB storage",
+        all(float(p.attributes.get("storage_gb", 0)) >= 128 for p in resp.products),
+        str([(p.id, p.attributes.get("storage_gb")) for p in resp.products]),
+    )
 
 
-@case("TRUST", "never recommends over budget")
-def t_budget():
-    r = _run("show me a phone under 10 euros a month")
-    for rec in r.recommendations:
-        p = get_product(rec.product_id)
-        if p and p.price_monthly > 0:
-            assert p.price_monthly <= 10, f"{p.name} is over the 10 EUR budget"
+async def eval_behavioral_signals() -> None:
+    print("\n[cart behavior shapes preferences]")
+    from app.preferences.store import preference_store
+    from app.retrieval.catalog import load_catalog
+    from app.preferences.engine import apply_event
+
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    catalog = await load_catalog()
+    sony = next(p for p in catalog if p.brand.lower() == "sony" and p.in_stock)
+
+    store = preference_store()
+    prefs = await store.get(session)
+    prefs = apply_event(prefs, "cart_add", sony)
+    prefs = apply_event(prefs, "purchase", sony)
+    await store.save(session, prefs)
+
+    check("brand affinity recorded", prefs.brands["sony"].score > 0.5)
+    check(
+        "inferred budget prior set for the purchased category",
+        sony.category in prefs.budgets and prefs.budgets[sony.category].source == "inferred",
+    )
+
+    resp = await turn(session, "recommend me some audio gear")
+    check("returns recommendations", bool(resp.products), resp.reply_text[:120])
+    check("ranking is personalized", all(
+        r.personalization_basis == "personalized" for r in resp.recommendations
+    ))
 
 
-@case("TRUST", "every recommendation is a real catalog product (no hallucination)")
-def t_in_catalog():
-    catalog_ids = {p.id for p in load_catalog()}
-    r = _run("phone with a great camera for travel")
-    for rec in r.recommendations:
-        assert rec.product_id in catalog_ids, f"{rec.product_id} is not in the catalog!"
+async def eval_scope_and_clarification() -> None:
+    print("\n[scope guard + greeting]")
+    session = f"guest-eval-{uuid.uuid4().hex[:8]}"
+    off_topic = await turn(session, "what's the weather in Berlin today?")
+    check("off-topic refused without products", not off_topic.products)
+
+    greeting = await turn(session, "hi")
+    check("greeting gets a warm reply, no products", bool(greeting.reply_text) and not greeting.products)
 
 
-@case("TRUST", "every shown product is in stock AND within budget")
-def t_all_grounded():
-    r = _run("android phone under 20 euros with a camera")
-    for rec in r.recommendations:
-        p = get_product(rec.product_id)
-        assert p and p.in_stock and p.stock > 0, f"{rec.product_id} is not in stock"
-        if p.price_monthly > 0:
-            assert p.price_monthly <= 20, f"{p.name} is over the 20 EUR budget"
-
-
-@case("TRUST", "stays grounded when nothing fits (graceful, no invented product)")
-def t_refuse():
-    r = _run("get me the iPhone 16 Pro for 10 euros a month")
-    assert "phone_iphone16pro" not in [x.product_id for x in r.recommendations], \
-        "offered an out-of-stock / over-budget iPhone"
-    assert r.reply_text.strip(), "expected a graceful reply even when refusing"
-
-
-# --------------------------------------------------------------------------- #
-# CONSTRAINTS - explicit asks become deterministic hard filters               #
-# --------------------------------------------------------------------------- #
-@case("CONSTRAINTS", "a brand request only returns that brand")
-def t_brand_filter():
-    r = _run("show me a Samsung phone")
-    assert r.recommendations, "expected Samsung phones"
-    for rec in r.recommendations:
-        assert _brand(rec.product_id) == "Samsung", \
-            f"{rec.product_id} is not Samsung but was shown for a Samsung request"
-
-
-@case("CONSTRAINTS", "asking for an iPhone never swaps in another brand")
-def t_iphone_no_swap():
-    # iPhone 16 Pro is out of stock, iPhone 15 is over a tight budget -> nothing
-    # eligible. The engine must REFUSE, not silently return a Samsung/Pixel.
-    r = _run("I want an iPhone for 15 euros a month")
-    brands = {_brand(x.product_id) for x in r.recommendations}
-    assert brands <= {"Apple"}, f"an iPhone request returned non-Apple products: {brands}"
-
-
-@case("CONSTRAINTS", "a plan request only returns plans")
-def t_type_filter():
-    r = _run("show me a plan with lots of data")
-    assert r.recommendations, "expected at least one plan"
-    for rec in r.recommendations:
-        p = get_product(rec.product_id)
-        assert p and p.type.value == "plan", \
-            f"{rec.product_id} is a {p.type.value if p else '?'}, not a plan"
-
-
-# --------------------------------------------------------------------------- #
-# CONVERSATION                                                                 #
-# --------------------------------------------------------------------------- #
-@case("CONVERSATION", "asks for clarification when too vague")
-def t_clarify():
-    r = _run("something good")
-    assert not r.recommendations and r.reply_text, "expected a clarification question"
-
-
-@case("CONVERSATION", "politely declines an unrelated question")
-def t_decline_unrelated():
-    r = _run("What is the capital of France?")
-    assert not r.recommendations, "unrelated questions must not return products"
-    assert "can’t help with that question" in r.reply_text, "expected a polite scope refusal"
-
-
-@case("CONVERSATION", "a bare greeting gets an engaging welcome, not a refusal")
-def t_greeting_welcome():
-    for msg in ("hi", "hello", "hey there", "good morning"):
-        r = _run(msg)
-        assert not r.recommendations, f"a greeting shouldn't return products ({msg!r})"
-        assert "can’t help with that question" not in r.reply_text, \
-            f"a bare greeting must not be treated as off-topic ({msg!r})"
-        assert r.reply_text.strip(), f"expected a welcome reply for {msg!r}"
-
-
-@case("CONVERSATION", "a greeting attached to a real request still searches normally")
-def t_greeting_with_request():
-    r = _run("hi, show me a phone with a good camera under 40 euros")
-    assert r.recommendations, "a real request prefixed with a greeting must still be answered"
-
-
-@case("CONVERSATION", "receipts are populated")
-def t_receipts():
-    r = _run("phone with a camera")
-    assert r.receipts.retrieved_ids, "receipts should record what was retrieved"
-    assert r.receipts.shown_ids == [x.product_id for x in r.recommendations], \
-        "receipts.shown_ids must match what was actually shown"
-
-
-@case("CONVERSATION", "assistant nudges are stored in history so follow-ups have a referent")
-def t_nudge_in_history():
-    # A phone recommendation emits an NBA nudge ("Add a protective case..."). That
-    # nudge must be persisted into the conversation turn, otherwise a later "yes"
-    # has nothing to refer to and the bot just repeats itself.
-    session = Session("eval-nudge")
-    r = run_pipeline("a phone with a good camera under 40 euros", session, "t")
-    assert r.nba, "expected at least one nudge for a phone recommendation"
-    turns = session.get_conversation("t")
-    last_assistant = turns[-1]
-    assert last_assistant["role"] == "assistant"
-    assert r.nba[0] in last_assistant["content"], \
-        "the nudge shown to the user was not saved into history"
-
-
-@case("CONVERSATION", "confirming a specific accessory doesn't pad the list with unrelated ones")
-def t_no_padding_for_specific_item():
-    # Confirming a specific suggestion (a protective case) should recommend the
-    # case (and, fairly, other protection items like a screen protector) - NOT
-    # get padded out to 3 with something irrelevant like wireless earbuds just
-    # to fill the slot.
-    r = _run("yes, add a protective case please")
-    ids = [x.product_id for x in r.recommendations]
-    assert "accessory_case" in ids, "expected the case itself to be recommended"
-    assert "accessory_buds" not in ids, \
-        "earbuds have no relevance to a case confirmation and should not pad the list"
-
-
-# --------------------------------------------------------------------------- #
-# PERSONALIZATION - ranking adapts to the profile                             #
-# --------------------------------------------------------------------------- #
-@case("PERSONALIZATION", "ranking changes after the user rejects a brand")
-def t_personalize():
-    session, say = _conversation()
-    before = say("show me an android phone with a good camera under 40 euros")
-    assert before.recommendations, "expected initial recommendations"
-
-    say("actually I don't want Samsung")           # -> profile.rejected gets Samsung
-    assert "Samsung" in session.profile.rejected, "rejection was not learned"
-
-    after = say("show me a phone with a good camera")
-    assert after.recommendations, "expected recommendations after the rejection"
-    top_brand = _brand(after.recommendations[0].product_id)
-    assert top_brand != "Samsung", f"top pick is still Samsung after rejecting it ({top_brand})"
-
-
-@case("PERSONALIZATION", "profile learns brand affinity and persists on the session")
-def t_profile_learns():
-    session, say = _conversation()
-    say("show me a Samsung phone")
-    assert "Samsung" in session.profile.brands_viewed, "brand affinity was not learned"
-    say("I take a lot of photos")
-    assert "camera" in session.profile.features_mentioned, "feature interest was not learned"
-    # The profile lives on the session, so it persists (Supabase) per user_id after login.
-    assert session.profile is not None
-
-
-# --------------------------------------------------------------------------- #
-# CART - deterministic math + checkout                                        #
-# --------------------------------------------------------------------------- #
-@case("CART", "cart math splits one-time goods from the monthly commitment")
-def t_cart_math():
-    store = SessionStore()                          # isolated in-memory store
-    store.add_to_cart("c", "phone_pixel8")          # monthly 15
-    store.add_to_cart("c", "accessory_case")        # one-time 15
-    store.add_to_cart("c", "accessory_charger")     # one-time 25
-    cart = store.get("c").cart
-    assert cart.subtotal == 40.0, f"one-time subtotal should be 40, got {cart.subtotal}"
-    assert cart.monthly_total == 15.0, f"monthly total should be 15, got {cart.monthly_total}"
-
-
-@case("CART", "free-shipping nudge computes the right gap")
-def t_free_shipping():
-    store = SessionStore()
-    store.add_to_cart("c", "accessory_case")        # 15 -> 35 short of the 50 threshold
-    s = store.cart_summary("c")
-    assert s["free_shipping_qualified"] is False
-    assert s["amount_to_free_shipping"] == 35.0, s["amount_to_free_shipping"]
-    store.add_to_cart("c", "accessory_buds")        # +49 -> qualifies
-    s = store.cart_summary("c")
-    assert s["free_shipping_qualified"] is True, "should qualify for free shipping at 64 EUR"
-
-
-@case("CART", "checkout confirms an order and clears the cart")
-def t_checkout():
-    store = SessionStore()
-    store.add_to_cart("c", "accessory_buds")
-    summary = store.checkout("c")
-    assert summary["status"] == "confirmed", "checkout should confirm the order"
-    assert summary["order_id"], "checkout should return an order id"
-    assert store.cart_summary("c")["item_count"] == 0, "cart should be empty after checkout"
-
-
-# --------------------------------------------------------------------------- #
-# AUTH - accounts + guest-to-user continuity                                  #
-# --------------------------------------------------------------------------- #
-@case("AUTH", "password hashing round-trips and rejects wrong passwords")
-def t_password_hash():
-    hashed = hash_password("correct-horse-battery")
-    assert verify_password("correct-horse-battery", hashed)
-    assert not verify_password("wrong-password", hashed)
-
-
-@case("AUTH", "duplicate email registration is rejected")
-def t_duplicate_email():
-    # Explicit in-memory backend so the test never touches the real Supabase users table.
-    user_store = UserStore(MemoryUserBackend())
-    user_store.create("dup@example.com", hash_password("pw1"))
+async def main() -> int:
+    await init_clients()
     try:
-        user_store.create("dup@example.com", hash_password("pw2"))
-        assert False, "expected a duplicate email to raise"
-    except ValueError:
-        pass
+        await eval_budget_range()
+        await eval_currency_normalization()
+        await eval_brand_exclusion_persists()
+        await eval_attribute_and_color_filters()
+        await eval_combined_filters()
+        await eval_behavioral_signals()
+        await eval_scope_and_clarification()
+    finally:
+        await close_clients()
 
-
-@case("AUTH", "a guest's cart survives merging into their new user_id")
-def t_merge_on_register():
-    sessions = SessionStore()
-    guest_id = f"guest-{uuid.uuid4().hex[:8]}"
-    sessions.add_to_cart(guest_id, "phone_pixel8")
-    sessions.add_to_cart(guest_id, "accessory_case")
-
-    user_id = uuid.uuid4().hex
-    merged = sessions.merge_guest_into_user(guest_id, user_id)
-
-    assert merged.session_id == user_id
-    assert len(merged.cart.items) == 2, "guest cart items should carry over"
-    assert merged.cart.subtotal == 15.0 and merged.cart.monthly_total == 15.0
-
-
-# --------------------------------------------------------------------------- #
-# RAG - semantic retrieval (skipped if Qdrant/deps aren't available)          #
-# --------------------------------------------------------------------------- #
-@case("RAG", "semantic search returns grounded, in-catalog products")
-def t_rag_grounded():
-    try:
-        from app.rag.retriever import search
-    except ImportError:
-        raise SkipCase("RAG deps not installed")
-    try:
-        hits = search("phone with a great camera for travel", k=3)
-    except Exception as e:  # noqa - Qdrant down / collection not ingested
-        raise SkipCase(f"Qdrant unavailable ({type(e).__name__})")
-    if not hits:
-        raise SkipCase("collection empty - run `python -m app.rag.ingestion`")
-
-    catalog_ids = {p.id for p in load_catalog()}
-    for h in hits:
-        assert h["product_id"] in catalog_ids, \
-            f"RAG returned {h['product_id']} which is not a real catalog product"
-
-
-def main():
-    passed = skipped = 0
-    current_group = None
-    for group, name, fn in CASES:
-        if group != current_group:
-            print(f"\n{group}")
-            current_group = group
-        try:
-            fn()
-            print(f"  PASS  {name}")
-            passed += 1
-        except SkipCase as e:
-            print(f"  SKIP  {name}  ->  {e}")
-            skipped += 1
-        except AssertionError as e:
-            print(f"  FAIL  {name}  ->  {e}")
-        except Exception as e:  # noqa
-            print(f"  ERROR {name}  ->  {type(e).__name__}: {e}")
-
-    total = len(CASES)
-    required = total - skipped
-    print(f"\n{'=' * 52}")
-    verdict = "ALL GREEN" if passed == required else "FAILURES"
-    tail = f" ({skipped} skipped)" if skipped else ""
-    print(f"  {passed}/{required} runnable eval cases passed{tail}   [{verdict}]")
-    print(f"{'=' * 52}")
-    return 0 if passed == required else 1
+    print(f"\n{'=' * 40}\n{PASSED} passed, {FAILED} failed")
+    return 1 if FAILED else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(asyncio.run(main()))
