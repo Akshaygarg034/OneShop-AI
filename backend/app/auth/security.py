@@ -1,66 +1,68 @@
-"""
-Password hashing + token issuance. Owned by P4.
+"""Password hashing (Argon2id) and JWT access tokens.
 
-Stdlib only (hashlib/hmac/secrets) - no bcrypt/PyJWT dependency, so it installs
-instantly and never needs a native build. PBKDF2-SHA256 with 100k iterations is
-a NIST-recommended KDF; plenty for a hackathon POC's auth.
-
-Tokens are self-contained and hmac-signed: "<user_id>.<expiry>.<signature>",
-base64url-encoded. Verifying a token needs no server-side lookup/storage - just
-recompute the signature with AUTH_SECRET and check the expiry.
+Legacy PBKDF2 hashes from the previous version still verify; callers re-hash
+to Argon2 on successful login (see needs_rehash).
 """
-import base64
+from __future__ import annotations
+
 import hashlib
 import hmac
-import secrets
 import time
+from typing import Optional
 
-from app.config import AUTH_SECRET, AUTH_TOKEN_TTL_SECONDS
+import jwt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 
-_PBKDF2_ITERATIONS = 100_000
+from app.config import get_settings
+
+_hasher = PasswordHasher()
+_JWT_ALGORITHM = "HS256"
+_LEGACY_PREFIX = "pbkdf2_sha256$"
 
 
 def hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), _PBKDF2_ITERATIONS)
-    return f"pbkdf2_sha256${_PBKDF2_ITERATIONS}${salt}${digest.hex()}"
+    return _hasher.hash(password)
 
 
 def verify_password(password: str, stored: str) -> bool:
+    if stored.startswith(_LEGACY_PREFIX):
+        return _verify_legacy(password, stored)
     try:
-        scheme, iterations, salt, digest_hex = stored.split("$")
-        if scheme != "pbkdf2_sha256":
-            return False
+        return _hasher.verify(stored, password)
+    except VerifyMismatchError:
+        return False
+    except Exception:
+        return False
+
+
+def needs_rehash(stored: str) -> bool:
+    return stored.startswith(_LEGACY_PREFIX) or _hasher.check_needs_rehash(stored)
+
+
+def _verify_legacy(password: str, stored: str) -> bool:
+    try:
+        _, iterations, salt, digest_hex = stored.split("$")
         candidate = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), int(iterations))
         return hmac.compare_digest(candidate.hex(), digest_hex)
     except (ValueError, AttributeError):
         return False
 
 
-def _sign(payload: str) -> str:
-    return hmac.new(AUTH_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-
-
 def issue_token(user_id: str) -> str:
-    expiry = int(time.time()) + AUTH_TOKEN_TTL_SECONDS
-    payload = f"{user_id}.{expiry}"
-    token = f"{payload}.{_sign(payload)}"
-    return base64.urlsafe_b64encode(token.encode()).decode().rstrip("=")
+    settings = get_settings()
+    now = int(time.time())
+    return jwt.encode(
+        {"sub": user_id, "iat": now, "exp": now + settings.auth_token_ttl_seconds},
+        settings.auth_secret,
+        algorithm=_JWT_ALGORITHM,
+    )
 
 
-def verify_token(token: str) -> str | None:
-    """Return the user_id if the token is well-formed, correctly signed, and
-    unexpired. Otherwise None - callers treat that as unauthenticated."""
+def verify_token(token: str) -> Optional[str]:
+    """Return the user_id for a valid, unexpired token; None otherwise."""
     try:
-        padded = token + "=" * (-len(token) % 4)
-        decoded = base64.urlsafe_b64decode(padded.encode()).decode()
-        user_id, expiry, signature = decoded.rsplit(".", 2)
-    except (ValueError, UnicodeDecodeError, base64.binascii.Error):
+        payload = jwt.decode(token, get_settings().auth_secret, algorithms=[_JWT_ALGORITHM])
+        return payload.get("sub")
+    except jwt.InvalidTokenError:
         return None
-
-    payload = f"{user_id}.{expiry}"
-    if not hmac.compare_digest(_sign(payload), signature):
-        return None
-    if int(expiry) < int(time.time()):
-        return None
-    return user_id

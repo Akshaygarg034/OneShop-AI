@@ -1,47 +1,49 @@
-"""
-FastAPI entry point. SHARED - thin, rarely touched.
-Each person's router is included here.
+"""FastAPI entry point."""
+from __future__ import annotations
 
-Run (mock mode, no API keys needed):
-    cd backend
-    pip install -r requirements.txt        # or just: pip install fastapi uvicorn pydantic python-dotenv
-    uvicorn app.main:app --reload
-Then open http://localhost:8000/docs
-"""
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api import auth, cart, catalog, chat, profile
-from app.config import RAG_ENABLED
+from app.clients import close_clients, init_clients
+from app.config import get_settings
+from app.observability import RequestContextMiddleware, configure_logging
+from app.rate_limit import limiter
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-load the embedding model at startup so the first query isn't slow.
-    if RAG_ENABLED:
-        try:
-            from app.rag.retriever import _vector_store
-            logger.info("startup: pre-loading embedding model...")
-            _vector_store()
-            logger.info("startup: embedding model ready.")
-        except Exception as exc:
-            logger.warning("startup: could not pre-load embedding model - %s", exc)
+    settings = get_settings()
+    await init_clients()
+    if settings.uses_supabase:
+        from app.bootstrap import ensure_schema, ensure_vector_collections
+        from app.retrieval.catalog import load_catalog
+
+        await ensure_schema()
+        await ensure_vector_collections()
+        catalog_items = await load_catalog()
+        logger.info("startup: ready (%d products, env=%s)", len(catalog_items), settings.environment)
     yield
+    await close_clients()
 
 
-app = FastAPI(title="Telekom Smart Shopping Assistant", lifespan=lifespan)
+app = FastAPI(title="Smart Shopping Assistant", lifespan=lifespan)
 
-# Allow the React frontend to call us. Both 5173 (Vite's own default) and 5180
-# (this repo's .claude/launch.json dev port) are listed - they'd drifted out
-# of sync, which silently broke every fetch when running via launch.json.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_settings().cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,5 +57,33 @@ app.include_router(profile.router)
 
 
 @app.get("/health")
-def health():
+async def health() -> dict:
+    """Liveness probe."""
     return {"status": "ok"}
+
+
+@app.get("/ready")
+async def ready() -> dict:
+    """Readiness probe: verifies the dependencies this service can't run without."""
+    settings = get_settings()
+    checks: dict[str, str] = {}
+
+    try:
+        from app.clients import qdrant_client
+
+        await qdrant_client().get_collections()
+        checks["qdrant"] = "ok"
+    except Exception as e:
+        checks["qdrant"] = f"error: {e}"
+
+    if settings.uses_supabase:
+        try:
+            from app.clients import supabase_client
+
+            await supabase_client().table(settings.catalog_table).select("id").limit(1).execute()
+            checks["supabase"] = "ok"
+        except Exception as e:
+            checks["supabase"] = f"error: {e}"
+
+    healthy = all(v == "ok" for v in checks.values())
+    return {"status": "ok" if healthy else "degraded", "checks": checks}

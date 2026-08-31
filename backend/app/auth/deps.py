@@ -1,29 +1,29 @@
-"""
-Ownership checks for endpoints that expose a session's private data. Owned by P4.
+"""Session ownership checks.
 
-Security model (POC, honest about the trade-off):
-  - A "guest-" session id is an anonymous, unguessable capability - holding it is
-    access (this is what makes the shareable ?session= omnichannel link work).
-  - A logged-in session id IS the user's account id, so reading that session's
-    PRIVATE data (conversation history) requires a valid token proving you are
-    that user. Otherwise anyone who learned a user_id could read their chats.
-
-At scale you'd issue an opaque per-session token distinct from the user id and
-verify it everywhere; here we gate the privacy-sensitive reads.
+- A "guest-" session id is an anonymous capability: holding it grants access.
+- A logged-in session id equals the account's user_id, so any read OR write
+  against it requires a bearer token proving the caller is that user.
+- Session ids that are neither guest-prefixed nor a known-format user id are
+  rejected, closing the "mint an arbitrary non-guest session" hole.
 """
-from fastapi import HTTPException
+from fastapi import Header, HTTPException
 
 from app.auth.security import verify_token
 
+_GUEST_PREFIX = "guest-"
+
 
 def assert_session_owner(session_id: str, authorization: str) -> None:
-    """Raise 401 unless the caller may read this session's private data.
-
-    Guest sessions are open; account sessions (session_id == user_id) require a
-    bearer token whose user_id matches."""
-    if not session_id or session_id.startswith("guest-"):
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+    if session_id.startswith(_GUEST_PREFIX):
         return
     token = authorization.removeprefix("Bearer ").strip()
     user_id = verify_token(token) if token else None
     if user_id != session_id:
-        raise HTTPException(status_code=401, detail="not authorized to read this session")
+        raise HTTPException(status_code=401, detail="not authorized for this session")
+
+
+async def session_owner_header(authorization: str = Header(default="")) -> str:
+    """FastAPI dependency that just forwards the Authorization header value."""
+    return authorization

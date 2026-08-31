@@ -1,303 +1,209 @@
-"""
-Session store + cart. Owned by P4.
+"""Cart/session persistence and checkout.
 
-Holds, per session_id: conversation history, preference profile, cart.
-The SAME session_id is used by both OneShop (web) and OneApp (mobile view)
--> that's how omnichannel continuity works.
-
-Persistence is pluggable (P4's "state continuity is a distributed problem" story):
-  - MemoryBackend   : in-memory dict. Zero config, the default. Dies on restart.
-  - SupabaseBackend : rows in Supabase Postgres. Survives restart AND lets a stateless
-                      service scale horizontally (the real omnichannel answer).
-
-Selection is driven by config (SESSION_BACKEND / SUPABASE_URL+KEY). If Supabase is
-requested but unreachable we log and fall back to memory, so the demo can never break.
-
-Heavy imports (the supabase client) live INSIDE the backend so mock mode needs nothing
-installed.
+Supabase rows are versioned: every cart write is an optimistic-concurrency
+compare-and-swap with retry, so two simultaneous mutations can't silently drop
+one another. Checkout persists an order row before clearing the cart.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
+from datetime import datetime, timezone
+from typing import Awaitable, Callable, Optional
 
-from app.config import SESSION_BACKEND, SUPABASE_KEY, SUPABASE_URL
-from app.contracts.models import Cart, CartItem, PreferenceProfile, Product
+from app.config import get_settings
+from app.contracts.models import Cart, CartItem, Product
+from app.preferences.engine import merge as merge_preferences
+from app.preferences.store import preference_store
 from app.retrieval.catalog import get_product, load_catalog
-from app.supabase_diag import describe_supabase_error
 
 logger = logging.getLogger(__name__)
 
-# Product types billed monthly (device-on-plan / tariffs) vs one-time (accessories).
-_MONTHLY_TYPES = {"phone", "plan"}
+_SESSIONS = "sessions"
+_ORDERS = "orders"
+_CAS_ATTEMPTS = 3
+
+CartMutation = Callable[[Cart], Awaitable[None] | None]
 
 
-def _price_of(product: Product | None) -> tuple[float, str]:
-    """Return (unit_price, billing) for a catalog product.
-
-    Phones/plans are device-on-plan -> priced monthly. Accessories/bundles are
-    one-time. This fixes the old bug where phones (price_onetime == 0) added to the
-    cart for EUR 0 and the subtotal never moved.
-    """
+def price_of(product: Optional[Product]) -> tuple[float, str]:
+    """(unit_price, billing) for a catalog product. Plans/bundles are monthly
+    commitments; devices and accessories are one-time purchases."""
     if product is None:
         return 0.0, "onetime"
-    if product.type.value in _MONTHLY_TYPES:
+    if product.is_monthly:
         return product.price_monthly, "monthly"
-    # one-time good: prefer the upfront price, fall back to monthly if that's all we have
     return (product.price_onetime or product.price_monthly), "onetime"
 
 
-def _merge_profiles(target: PreferenceProfile, guest: PreferenceProfile) -> PreferenceProfile:
-    """Union list fields, prefer the target's budget unless it's unset."""
-    return PreferenceProfile(
-        budget_monthly_max=target.budget_monthly_max if target.budget_monthly_max is not None
-        else guest.budget_monthly_max,
-        brands_viewed=list(dict.fromkeys(target.brands_viewed + guest.brands_viewed)),
-        features_mentioned=list(dict.fromkeys(target.features_mentioned + guest.features_mentioned)),
-        categories_browsed=list(dict.fromkeys(target.categories_browsed + guest.categories_browsed)),
-        rejected=list(dict.fromkeys(target.rejected + guest.rejected)),
-    )
+def _recompute(cart: Cart) -> None:
+    cart.subtotal = round(sum(i.price * i.qty for i in cart.items if i.billing == "onetime"), 2)
+    cart.monthly_total = round(sum(i.price * i.qty for i in cart.items if i.billing == "monthly"), 2)
 
 
-class Session:
-    def __init__(self, session_id: str):
-        self.session_id = session_id
-        # Keyed by conversation_id → list of {role, content, recommendations?}
-        self.conversations: dict[str, list[dict]] = {}
-        self.profile = PreferenceProfile()
-        self.cart = Cart(session_id=session_id)
+class MemorySessionBackend:
+    def __init__(self) -> None:
+        self._carts: dict[str, Cart] = {}
+        self._orders: list[dict] = []
+        self._lock = asyncio.Lock()
 
-    # ── conversation helpers ────────────────────────────────────────────────────
-    def get_conversation(self, conversation_id: str) -> list[dict]:
-        """Return (and lazily create) the message list for a conversation thread."""
-        if conversation_id not in self.conversations:
-            self.conversations[conversation_id] = []
-        return self.conversations[conversation_id]
+    async def get_cart(self, session_id: str) -> Cart:
+        cart = self._carts.get(session_id)
+        return cart.model_copy(deep=True) if cart else Cart(session_id=session_id)
 
-    @property
-    def history(self) -> list[dict]:
-        """Flat view of all turns across all conversations.  Used by the profile
-        updater and any code that still accesses session.history directly."""
-        result: list[dict] = []
-        for conv in self.conversations.values():
-            result.extend(conv)
-        return result
+    async def mutate_cart(self, session_id: str, mutation: CartMutation) -> Cart:
+        async with self._lock:
+            cart = self._carts.get(session_id) or Cart(session_id=session_id)
+            result = mutation(cart)
+            if asyncio.iscoroutine(result):
+                await result
+            _recompute(cart)
+            self._carts[session_id] = cart
+            return cart.model_copy(deep=True)
 
-    # --- serialization (for persistent backends) ---
-    def to_dict(self) -> dict:
-        # Supabase schema column is still named `history`; it now stores the
-        # conversations dict (conv_id -> messages). Using the DB column name here
-        # keeps upserts working without a migration.
-        return {
-            "session_id": self.session_id,
-            "history": self.conversations,
-            "profile": self.profile.model_dump(),
-            "cart": self.cart.model_dump(),
-        }
-
-    @classmethod
-    def from_dict(cls, session_id: str, data: dict) -> "Session":
-        s = cls(session_id)
-        if "conversations" in data:
-            s.conversations = data.get("conversations") or {}
-        elif "history" in data:
-            raw = data.get("history") or []
-            if isinstance(raw, dict):
-                s.conversations = raw
-            elif raw:
-                # One-time migration: old flat history → single "legacy" thread
-                s.conversations["legacy"] = raw
-        s.profile = PreferenceProfile(**(data.get("profile") or {}))
-        cart_data = data.get("cart") or {"session_id": session_id}
-        cart_data.setdefault("session_id", session_id)
-        s.cart = Cart(**cart_data)
-        return s
+    async def record_order(self, order: dict) -> None:
+        self._orders.append(order)
 
 
-# --------------------------------------------------------------------------- #
-# Backends                                                                     #
-# --------------------------------------------------------------------------- #
-class MemoryBackend:
-    """In-memory sessions. Fast, zero config, wiped on restart (deliberate POC debt)."""
-    name = "memory"
+class SupabaseSessionBackend:
+    async def _fetch(self, session_id: str) -> tuple[Cart, Optional[int]]:
+        from app.clients import supabase_client
 
-    def __init__(self):
-        self._sessions: dict[str, Session] = {}
+        resp = await (
+            supabase_client().table(_SESSIONS)
+            .select("cart,version").eq("session_id", session_id).limit(1).execute()
+        )
+        if resp.data:
+            row = resp.data[0]
+            cart_data = row.get("cart") or {}
+            cart_data.setdefault("session_id", session_id)
+            return Cart(**cart_data), row.get("version") or 1
+        return Cart(session_id=session_id), None
 
-    def get_session(self, session_id: str) -> Session:
-        if session_id not in self._sessions:
-            self._sessions[session_id] = Session(session_id)
-        return self._sessions[session_id]
+    async def get_cart(self, session_id: str) -> Cart:
+        cart, _ = await self._fetch(session_id)
+        return cart
 
-    def save(self, session: Session) -> None:
-        # session is the live object already held in the dict -> nothing to do.
-        self._sessions[session.session_id] = session
+    async def mutate_cart(self, session_id: str, mutation: CartMutation) -> Cart:
+        from app.clients import supabase_client
 
+        client = supabase_client()
+        for attempt in range(_CAS_ATTEMPTS):
+            cart, version = await self._fetch(session_id)
+            result = mutation(cart)
+            if asyncio.iscoroutine(result):
+                await result
+            _recompute(cart)
 
-class SupabaseBackend:
-    """Sessions persisted as rows in Supabase Postgres.
+            if version is None:
+                try:
+                    await client.table(_SESSIONS).insert({
+                        "session_id": session_id, "cart": cart.model_dump(), "version": 1,
+                    }).execute()
+                    return cart
+                except Exception:
+                    logger.info("cart: insert race for %s, retrying", session_id)
+                    continue
 
-    Table (see supabase_schema.sql): sessions(session_id pk, history jsonb,
-    profile jsonb, cart jsonb, updated_at). Upsert on the primary key -> writes are
-    idempotent, so a retried cart-add can't double-charge. The service is stateless:
-    every request loads fresh from Postgres and saves back, which is exactly what lets
-    web + mobile share one session and lets the service scale horizontally.
-    """
-    name = "supabase"
-
-    def __init__(self, url: str, key: str, table: str = "sessions"):
-        from supabase import create_client  # heavy import, kept local
-        self._client = create_client(url, key)
-        self._table = table
-        self._url = url
-        # Fail fast so _make_backend can fall back to memory if creds/table are wrong.
-        self._client.table(self._table).select("session_id").limit(1).execute()
-
-    def get_session(self, session_id: str) -> Session:
-        try:
-            resp = (
-                self._client.table(self._table)
-                .select("*")
-                .eq("session_id", session_id)
-                .limit(1)
+            resp = await (
+                client.table(_SESSIONS)
+                .update({"cart": cart.model_dump(), "version": version + 1})
+                .eq("session_id", session_id).eq("version", version)
                 .execute()
             )
             if resp.data:
-                return Session.from_dict(session_id, resp.data[0])
-        except Exception as e:  # noqa - never let a read blip break a turn
-            logger.error(
-                "session: Supabase read failed for %s - %s",
-                session_id, describe_supabase_error(e, self._url),
-            )
-        return Session(session_id)
+                return cart
+            logger.info("cart: version conflict for %s (attempt %d), retrying", session_id, attempt + 1)
+        raise RuntimeError(f"cart update failed after {_CAS_ATTEMPTS} attempts for {session_id}")
 
-    def save(self, session: Session) -> None:
-        try:
-            self._client.table(self._table).upsert(
-                session.to_dict(), on_conflict="session_id"
-            ).execute()
-        except Exception as e:  # noqa - a write blip must not crash the demo
-            logger.error(
-                "session: Supabase write failed for %s - %s",
-                session.session_id, describe_supabase_error(e, self._url),
-            )
+    async def record_order(self, order: dict) -> None:
+        from app.clients import supabase_client
+
+        await supabase_client().table(_ORDERS).insert(order).execute()
 
 
-def _make_backend():
-    want = (SESSION_BACKEND or "auto").strip().lower()
-    use_supabase = want == "supabase" or (want == "auto" and SUPABASE_URL and SUPABASE_KEY)
-    if use_supabase:
-        if not (SUPABASE_URL and SUPABASE_KEY):
-            logger.warning("SESSION_BACKEND=supabase but SUPABASE_URL/KEY missing; using in-memory sessions.")
-            return MemoryBackend()
-        try:
-            backend = SupabaseBackend(SUPABASE_URL, SUPABASE_KEY)
-            logger.info("session: using Supabase persistence.")
-            return backend
-        except Exception as e:  # noqa - keep the demo bulletproof
-            logger.warning(
-                "session: Supabase unavailable, falling back to in-memory (sessions won't "
-                "survive a restart) - %s",
-                describe_supabase_error(e, SUPABASE_URL),
-            )
-            return MemoryBackend()
-    return MemoryBackend()
-
-
-# --------------------------------------------------------------------------- #
-# Store facade (unchanged public API: get / add_to_cart / remove / checkout)   #
-# --------------------------------------------------------------------------- #
 class SessionStore:
-    def __init__(self, backend=None):
-        self._backend = backend or _make_backend()
+    def __init__(self, backend=None) -> None:
+        self._backend = backend or (
+            SupabaseSessionBackend() if get_settings().uses_supabase else MemorySessionBackend()
+        )
 
-    @property
-    def backend_name(self) -> str:
-        return getattr(self._backend, "name", "memory")
+    async def get_cart(self, session_id: str) -> Cart:
+        return await self._backend.get_cart(session_id)
 
-    def get(self, session_id: str) -> Session:
-        return self._backend.get_session(session_id)
+    async def add_to_cart(self, session_id: str, product_id: str, qty: int = 1) -> Cart:
+        product = await get_product(product_id)
+        price, billing = price_of(product)
 
-    def save(self, session: Session) -> None:
-        """Persist a session after the pipeline mutates its history/profile/cart.
-        No-op for the memory backend; a Postgres upsert for Supabase."""
-        self._backend.save(session)
-
-    # --- cart operations (mutate, then persist) ---
-    def add_to_cart(self, session_id: str, product_id: str, qty: int = 1) -> Cart:
-        session = self.get(session_id)
-        product = get_product(product_id)
-        price, billing = _price_of(product)
-        for item in session.cart.items:
-            if item.product_id == product_id:
-                item.qty += qty
-                break
-        else:
-            session.cart.items.append(CartItem(
-                product_id=product_id,
-                qty=qty,
-                price=price,
-                name=product.name if product else product_id,
-                billing=billing,
+        def mutation(cart: Cart) -> None:
+            for item in cart.items:
+                if item.product_id == product_id:
+                    item.qty += qty
+                    return
+            cart.items.append(CartItem(
+                product_id=product_id, qty=qty, price=price,
+                name=product.name if product else product_id, billing=billing,
             ))
-        self._recompute(session.cart)
-        self.save(session)
-        return session.cart
 
-    def remove_from_cart(self, session_id: str, product_id: str) -> Cart:
-        session = self.get(session_id)
-        session.cart.items = [i for i in session.cart.items if i.product_id != product_id]
-        self._recompute(session.cart)
-        self.save(session)
-        return session.cart
+        return await self._backend.mutate_cart(session_id, mutation)
 
-    def set_cart_qty(self, session_id: str, product_id: str, qty: int) -> Cart:
-        """Set an item's quantity directly (for a +/- stepper). qty <= 0 removes it."""
-        session = self.get(session_id)
-        if qty <= 0:
-            session.cart.items = [i for i in session.cart.items if i.product_id != product_id]
-        else:
-            for item in session.cart.items:
+    async def remove_from_cart(self, session_id: str, product_id: str) -> Cart:
+        def mutation(cart: Cart) -> None:
+            cart.items = [i for i in cart.items if i.product_id != product_id]
+
+        return await self._backend.mutate_cart(session_id, mutation)
+
+    async def set_cart_qty(self, session_id: str, product_id: str, qty: int) -> Cart:
+        product = await get_product(product_id)
+        price, billing = price_of(product)
+
+        def mutation(cart: Cart) -> None:
+            if qty <= 0:
+                cart.items = [i for i in cart.items if i.product_id != product_id]
+                return
+            for item in cart.items:
                 if item.product_id == product_id:
                     item.qty = qty
-                    break
-            else:
-                product = get_product(product_id)
-                price, billing = _price_of(product)
-                session.cart.items.append(CartItem(
-                    product_id=product_id, qty=qty, price=price,
-                    name=product.name if product else product_id, billing=billing,
-                ))
-        self._recompute(session.cart)
-        self.save(session)
-        return session.cart
+                    return
+            cart.items.append(CartItem(
+                product_id=product_id, qty=qty, price=price,
+                name=product.name if product else product_id, billing=billing,
+            ))
 
-    def suggest_additions(self, session_id: str, limit: int = 3) -> list[Product]:
-        """Catalog-grounded 'complete your setup' suggestions: in-stock items not
-        already in the cart, weighted toward categories that complement what's
-        already there (a phone in cart -> prioritize accessories/plans). No
-        fabricated scores or social proof - just a deterministic filter + sort
-        over real catalog data."""
-        cart = self.get(session_id).cart
-        in_cart_ids = {i.product_id for i in cart.items}
-        cart_types = {p.type.value for i in cart.items if (p := get_product(i.product_id))}
+        return await self._backend.mutate_cart(session_id, mutation)
 
-        def _score(p: Product) -> int:
-            s = 0
-            if "phone" in cart_types and p.type.value == "accessory":
-                s += 3
-            if "phone" in cart_types and p.type.value == "plan":
+    async def suggest_additions(self, session_id: str, limit: int = 3) -> list[Product]:
+        """Catalog-grounded 'complete your setup' suggestions: in-stock items that
+        complement what's already in the cart."""
+        cart = await self.get_cart(session_id)
+        catalog = await load_catalog()
+        in_cart = {i.product_id for i in cart.items}
+        cart_products = [p for i in cart.items if (p := next((c for c in catalog if c.id == i.product_id), None))]
+        cart_types = {p.type.value for p in cart_products}
+        cart_brands = {p.brand.lower() for p in cart_products}
+        device_types = {"phone", "tablet", "laptop", "wearable"}
+
+        def score(p: Product) -> float:
+            s = 0.0
+            if p.type.value == "accessory":
+                compatible = {str(c).lower() for c in p.attributes.get("compatible_with", [])}
+                if compatible & in_cart:
+                    s += 4
+                if compatible & cart_brands:
+                    s += 3
+                if cart_types & device_types:
+                    s += 2
+            if p.type.value == "plan" and "phone" in cart_types and "plan" not in cart_types:
                 s += 2
-            return s
+            return s + p.popularity
 
-        candidates = [p for p in load_catalog() if p.id not in in_cart_ids and p.in_stock and p.stock > 0]
-        return sorted(candidates, key=_score, reverse=True)[:limit]
+        candidates = [p for p in catalog if p.id not in in_cart and p.in_stock and p.stock > 0]
+        candidates.sort(key=score, reverse=True)
+        return candidates[:limit]
 
-    def cart_summary(self, session_id: str) -> dict:
-        """Read-only, display-ready cart summary for the checkout review screen.
-        Does NOT clear the cart (unlike checkout). Splits today's goods from the
-        monthly commitment and computes the free-shipping nudge."""
-        cart = self.get(session_id).cart
+    async def cart_summary(self, session_id: str) -> dict:
+        cart = await self.get_cart(session_id)
         remaining = round(max(0.0, cart.free_shipping_threshold - cart.subtotal), 2)
         qualifies = cart.subtotal >= cart.free_shipping_threshold
         return {
@@ -316,65 +222,63 @@ class SessionStore:
             ),
         }
 
-    def merge_guest_into_user(self, guest_session_id: str, user_id: str) -> Session:
-        """Called on register/login: fold a guest's conversations/profile/cart into
-        the session keyed by their permanent user_id.  Each conversation thread
-        keeps its own ID, so the frontend's stored conversation_id remains valid
-        after the session switch."""
-        if guest_session_id == user_id:
-            return self.get(user_id)
-
-        guest = self.get(guest_session_id)
-        target = self.get(user_id)
-
-        # Merge conversation threads (same conv_id is very unlikely across sessions)
-        for conv_id, conv_history in guest.conversations.items():
-            if conv_id in target.conversations:
-                target.conversations[conv_id] = target.conversations[conv_id] + conv_history
-            else:
-                target.conversations[conv_id] = conv_history
-        target.profile = _merge_profiles(target.profile, guest.profile)
-
-        for item in guest.cart.items:
-            for existing in target.cart.items:
-                if existing.product_id == item.product_id:
-                    existing.qty += item.qty
-                    break
-            else:
-                target.cart.items.append(item)
-        self._recompute(target.cart)
-
-        self.save(target)
-        return target
-
-    def checkout(self, session_id: str) -> dict:
-        session = self.get(session_id)
-        cart = session.cart
-        free_shipping = cart.subtotal >= cart.free_shipping_threshold
-        summary = {
-            "session_id": session_id,
-            # Unique per order; uuid (not hash(), which is per-process randomised).
+    async def checkout(self, session_id: str) -> dict:
+        cart = await self.get_cart(session_id)
+        order = {
             "order_id": f"TK-{uuid.uuid4().hex[:8].upper()}",
+            "session_id": session_id,
             "items": [i.model_dump() for i in cart.items],
-            "onetime_total": cart.subtotal,          # goods paid today
-            "monthly_total": cart.monthly_total,     # recurring commitment
-            "total": cart.subtotal,                  # back-compat: today's charge
-            "free_shipping": free_shipping,
+            "onetime_total": cart.subtotal,
+            "monthly_total": cart.monthly_total,
+            "free_shipping": cart.subtotal >= cart.free_shipping_threshold,
             "status": "confirmed",
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
-        session.cart = Cart(session_id=session_id)  # clear after order
-        self.save(session)
-        return summary
+        await self._backend.record_order(order)
 
-    @staticmethod
-    def _recompute(cart: Cart) -> None:
-        cart.subtotal = round(
-            sum(i.price * i.qty for i in cart.items if i.billing == "onetime"), 2
-        )
-        cart.monthly_total = round(
-            sum(i.price * i.qty for i in cart.items if i.billing == "monthly"), 2
-        )
+        def clear(c: Cart) -> None:
+            c.items = []
+
+        await self._backend.mutate_cart(session_id, clear)
+        return {**order, "total": order["onetime_total"]}
+
+    async def merge_guest_into_user(self, guest_session_id: str, user_id: str) -> None:
+        """On login/register: fold the guest's cart, preferences, conversations,
+        and memory vectors into the account identity."""
+        if guest_session_id == user_id:
+            return
+
+        guest_cart = await self.get_cart(guest_session_id)
+        if guest_cart.items:
+            def mutation(cart: Cart) -> None:
+                for item in guest_cart.items:
+                    for existing in cart.items:
+                        if existing.product_id == item.product_id:
+                            existing.qty += item.qty
+                            break
+                    else:
+                        cart.items.append(item)
+
+            await self._backend.mutate_cart(user_id, mutation)
+
+        prefs_store = preference_store()
+        guest_prefs = await prefs_store.get(guest_session_id)
+        user_prefs = await prefs_store.get(user_id)
+        await prefs_store.save(user_id, merge_preferences(user_prefs, guest_prefs))
+        await prefs_store.delete(guest_session_id)
+
+        from app.conversations.memory import reassign_session as reassign_memory
+        from app.conversations.store import conversation_store
+
+        await conversation_store().reassign_session(guest_session_id, user_id)
+        await reassign_memory(guest_session_id, user_id)
 
 
-# Single shared instance for the whole app.
-store = SessionStore()
+_store: Optional[SessionStore] = None
+
+
+def session_store() -> SessionStore:
+    global _store
+    if _store is None:
+        _store = SessionStore()
+    return _store

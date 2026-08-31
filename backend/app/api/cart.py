@@ -1,12 +1,21 @@
-"""
-Cart & checkout endpoints. Owned by P4.
-Same session_id works from web (OneShop) and mobile view (OneApp) -> omnichannel.
-"""
-from fastapi import APIRouter
+"""Cart and checkout endpoints. Mutations are ownership-gated and feed
+behavioral signals (add / remove / purchase) into the preference profile."""
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
 
+from app.auth.deps import assert_session_owner
 from app.contracts.models import Cart, Product
-from app.session.store import store
+from app.preferences.engine import BehaviorEvent, apply_event
+from app.preferences.store import preference_store
+from app.rate_limit import limiter
+from app.retrieval.catalog import get_product
+from app.session.store import session_store
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
@@ -17,49 +26,67 @@ class CartOp(BaseModel):
     qty: int = 1
 
 
-class CartSetOp(BaseModel):
-    session_id: str
-    product_id: str
-    qty: int
-
-
 class CheckoutReq(BaseModel):
     session_id: str
 
 
-@router.get("", response_model=Cart)
-def get_cart(session_id: str) -> Cart:
-    return store.get(session_id).cart
+async def _record_behavior(session_id: str, event: BehaviorEvent, product_id: str) -> None:
+    """Behavioral preference learning must never fail a cart operation."""
+    try:
+        product = await get_product(product_id)
+        if product is None:
+            return
+        store = preference_store()
+        prefs = await store.get(session_id)
+        await store.save(session_id, apply_event(prefs, event, product))
+    except Exception:
+        logger.exception("cart: failed to record %s signal for %s", event, session_id)
 
 
 @router.get("/summary")
-def summary(session_id: str) -> dict:
-    """Display-ready cart for the checkout review screen (does NOT clear the cart)."""
-    return store.cart_summary(session_id)
+async def summary(session_id: str, authorization: str = Header(default="")) -> dict:
+    assert_session_owner(session_id, authorization)
+    return await session_store().cart_summary(session_id)
 
 
 @router.post("/add", response_model=Cart)
-def add(op: CartOp) -> Cart:
-    return store.add_to_cart(op.session_id, op.product_id, op.qty)
+@limiter.limit("60/minute")
+async def add(op: CartOp, request: Request, authorization: str = Header(default="")) -> Cart:
+    assert_session_owner(op.session_id, authorization)
+    cart = await session_store().add_to_cart(op.session_id, op.product_id, op.qty)
+    await _record_behavior(op.session_id, "cart_add", op.product_id)
+    return cart
 
 
 @router.post("/remove", response_model=Cart)
-def remove(op: CartOp) -> Cart:
-    return store.remove_from_cart(op.session_id, op.product_id)
+@limiter.limit("60/minute")
+async def remove(op: CartOp, request: Request, authorization: str = Header(default="")) -> Cart:
+    assert_session_owner(op.session_id, authorization)
+    cart = await session_store().remove_from_cart(op.session_id, op.product_id)
+    await _record_behavior(op.session_id, "cart_remove", op.product_id)
+    return cart
 
 
 @router.post("/set", response_model=Cart)
-def set_qty(op: CartSetOp) -> Cart:
-    """Set an item's quantity directly (for a +/- stepper in the UI)."""
-    return store.set_cart_qty(op.session_id, op.product_id, op.qty)
+@limiter.limit("60/minute")
+async def set_qty(op: CartOp, request: Request, authorization: str = Header(default="")) -> Cart:
+    assert_session_owner(op.session_id, authorization)
+    return await session_store().set_cart_qty(op.session_id, op.product_id, op.qty)
 
 
 @router.get("/suggestions", response_model=list[Product])
-def suggestions(session_id: str, limit: int = 3) -> list[Product]:
-    """Catalog-grounded 'complete your setup' suggestions for the current cart."""
-    return store.suggest_additions(session_id, limit)
+async def suggestions(session_id: str, limit: int = 3, authorization: str = Header(default="")) -> list[Product]:
+    assert_session_owner(session_id, authorization)
+    return await session_store().suggest_additions(session_id, limit)
 
 
 @router.post("/checkout")
-def checkout(req: CheckoutReq) -> dict:
-    return store.checkout(req.session_id)
+@limiter.limit("10/minute")
+async def checkout(req: CheckoutReq, request: Request, authorization: str = Header(default="")) -> dict:
+    assert_session_owner(req.session_id, authorization)
+    cart = await session_store().get_cart(req.session_id)
+    order = await session_store().checkout(req.session_id)
+    # A purchase is the strongest preference signal we have.
+    for item in cart.items:
+        await _record_behavior(req.session_id, "purchase", item.product_id)
+    return order
