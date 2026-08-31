@@ -1,3 +1,5 @@
-# Downloaded embedding model cache (sentence-transformers/huggingface_hub).
-# Lives outside backend/ deliberately - see app/config.py::MODEL_CACHE_DIR.
-.model_cache/
+# Editor / assistant local settings
+.claude/
+
+# OS junk
+.DS_Store
