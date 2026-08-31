@@ -1,133 +1,12 @@
 import { useEffect, useState } from "react";
-import { Sparkles, ShoppingCart, Info, Star, TrendingUp, X, Check, RefreshCw } from "lucide-react";
+import { ShoppingCart, Star, TrendingUp, Check, RefreshCw } from "lucide-react";
 import { useCart } from "../../cart/CartContext";
-import { useAuth } from "../../auth/AuthContext";
-import { getProducts } from "../../api/mockApi";
+import { getProducts } from "../../api/api";
 import { formatEUR } from "../../lib/format";
-import { isAiRecommended } from "../../lib/products";
+import { ColorDots } from "../ColorDots";
 import type { Product } from "../../types";
 
-const categories = ["All", "Phones", "Plans", "Accessories", "Bundles", "Smart Home"];
-
-const SIGNAL_LABELS: Record<string, string> = {
-  relevance: "Matches what you asked for",
-  preference: "Fits your preferences",
-  budget: "Budget fit",
-  popularity: "Popular with other customers",
-};
-
-/** Real signal breakdown from recommend.rank_products() (backend/app/recommend/
- * recommender.py), each already normalized 0-1. Preference can be negative for
- * a rejected brand - clamp for display since a bar can't go below empty. */
-const SignalBar = ({ label, value }: { label: string; value: number }) => {
-  const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <div className="flex items-center justify-between" style={{ marginBottom: 3 }}>
-        <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{label}</span>
-        <span style={{ fontSize: 11, color: "var(--foreground)", fontWeight: 600 }}>{pct}%</span>
-      </div>
-      <div style={{ height: 5, borderRadius: 3, background: "var(--muted)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: "var(--primary)", borderRadius: 3 }} />
-      </div>
-    </div>
-  );
-};
-
-const WhyModal = ({ product, onClose }: { product: Product; onClose: () => void }) => (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.75)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 100,
-      backdropFilter: "blur(4px)",
-    }}
-    onClick={onClose}
-  >
-    <div
-      style={{
-        background: "var(--popover)",
-        border: "1px solid rgba(var(--border-rgb),0.1)",
-        borderRadius: 16,
-        padding: 28,
-        maxWidth: 420,
-        width: "90%",
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles size={14} style={{ color: "var(--primary)" }} />
-            <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 600 }}>WHY THIS RECOMMENDATION?</span>
-          </div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)" }}>{product.name}</p>
-        </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
-          <X size={18} />
-        </button>
-      </div>
-
-      <div
-        style={{
-          background: "rgba(var(--primary-rgb),0.06)",
-          border: "1px solid rgba(var(--primary-rgb),0.15)",
-          borderRadius: 10,
-          padding: "12px 14px",
-          marginBottom: 16,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
-        <div style={{ fontSize: 28, fontWeight: 700, color: "var(--primary)" }}>{product.aiScore}%</div>
-        <div>
-          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>Match score</p>
-          <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
-            {product.personalizationBasis === "personalized"
-              ? "Weighted from your saved preferences below"
-              : "We don't have your preferences yet - weighted from relevance & popularity below"}
-          </p>
-        </div>
-      </div>
-
-      {product.signals && (
-        <>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 8, fontWeight: 600 }}>
-            HOW THE SCORE IS MADE UP:
-          </p>
-          <div style={{ marginBottom: 14 }}>
-            {Object.entries(product.signals).map(([key, value]) => (
-              <SignalBar key={key} label={SIGNAL_LABELS[key] ?? key} value={value} />
-            ))}
-          </div>
-        </>
-      )}
-
-      <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 10, fontWeight: 600 }}>WHY:</p>
-      <div className="space-y-2.5">
-        {product.reasons.map((reason, i) => (
-          <div key={i} className="flex gap-3">
-            <Check size={13} style={{ color: "#22C55E", flexShrink: 0, marginTop: 2 }} />
-            <p style={{ fontSize: 12, color: "var(--foreground)", lineHeight: 1.5 }}>{reason}</p>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ borderTop: "1px solid rgba(var(--border-rgb),0.07)", marginTop: 16, paddingTop: 14 }}>
-        <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
-          {product.personalizationBasis === "personalized"
-            ? "Personalized: ranked using your budget, viewed brands, and mentioned features."
-            : "Cold start: no learned preferences yet - ranked by relevance to your search and general popularity. Chat with the assistant to personalize this."}
-        </p>
-      </div>
-    </div>
-  </div>
-);
+const categories = ["All", "Smartphones", "Tablets", "Laptops", "Wearables", "Audio", "Accessories", "Plans", "Bundles"];
 
 const SkeletonCard = () => (
   <div
@@ -153,9 +32,7 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [whyProduct, setWhyProduct] = useState<Product | null>(null);
   const { addItem, removeItem, isInCart } = useCart();
-  const { user } = useAuth();
 
   const loadProducts = () => {
     setLoading(true);
@@ -177,15 +54,13 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
 
   return (
     <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-8 sm:py-10" style={{ color: "var(--foreground)" }}>
-      {whyProduct && <WhyModal product={whyProduct} onClose={() => setWhyProduct(null)} />}
-
       {/* Hero */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: "clamp(24px, 6vw, 34px)", fontWeight: 800, color: "var(--foreground)", marginBottom: 10, lineHeight: 1.15 }}>
           Shop smarter with AI.
         </h1>
         <p style={{ fontSize: 14, color: "var(--muted-foreground-2)", maxWidth: 520 }}>
-          Personalized picks across phones, plans, and accessories — matched to what you actually need.
+          Personalized picks across phones, tablets, laptops, audio, and plans — matched to what you actually need.
         </p>
       </div>
 
@@ -301,24 +176,6 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                       {product.badge}
                     </span>
                   </div>
-                  {user && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: 10,
-                        right: 10,
-                        background: "var(--primary)",
-                        borderRadius: 6,
-                        padding: "3px 8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Sparkles size={9} style={{ color: "#fff" }} />
-                      <span style={{ fontSize: 10, color: "#fff", fontWeight: 700 }}>{product.aiScore}%</span>
-                    </div>
-                  )}
                   {!product.inStock && (
                     <div
                       style={{
@@ -341,12 +198,17 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                 {/* Content */}
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{product.category}</span>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)", lineHeight: 1.3 }}>{product.name}</p>
+                    <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
+                      {product.brand ? `${product.brand} · ` : ""}{product.category}
+                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)", lineHeight: 1.3 }}>{product.name}</p>
+                      <ColorDots colors={product.colors} />
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
-                    {product.tags.map((tag) => (
+                    {(product.specs.length ? product.specs : product.tags).slice(0, 4).map((tag) => (
                       <span
                         key={tag}
                         style={{
@@ -381,6 +243,11 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
 
                   <div className="flex items-baseline gap-2 mb-4">
                     <span style={{ fontSize: 18, fontWeight: 700, color: "var(--foreground)" }}>{formatEUR(product.price)}</span>
+                    {product.originalPrice > 0 && (
+                      <span style={{ fontSize: 12, color: "var(--muted-foreground)", textDecoration: "line-through" }}>
+                        {formatEUR(product.originalPrice)}
+                      </span>
+                    )}
                     {product.monthlyPrice > 0 && (
                       <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>or {formatEUR(product.monthlyPrice)}/mo</span>
                     )}
@@ -413,28 +280,6 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                       {inCart ? <Check size={13} /> : <ShoppingCart size={13} />}
                       {inCart ? "In Cart" : product.inStock ? "Add to Cart" : "Out of Stock"}
                     </button>
-                    {user && isAiRecommended(product) && (
-                      <button
-                        onClick={() => setWhyProduct(product)}
-                        style={{
-                          padding: "9px 14px",
-                          borderRadius: 50,
-                          border: "1.5px solid rgba(var(--primary-rgb),0.3)",
-                          cursor: "pointer",
-                          background: "transparent",
-                          color: "var(--primary)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                        title="Why this recommendation?"
-                      >
-                        <Info size={12} />
-                        Why?
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

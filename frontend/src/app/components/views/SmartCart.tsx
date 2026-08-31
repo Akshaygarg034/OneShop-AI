@@ -5,8 +5,8 @@ import {
 } from "lucide-react";
 import { useCart } from "../../cart/CartContext";
 import { useAuth } from "../../auth/AuthContext";
-import { getBundleSuggestions, getLiveActivity, createOrder } from "../../api/mockApi";
-import type { OrderResult } from "../../api/mockApi";
+import { getBundleSuggestions, getLiveActivity, createOrder } from "../../api/api";
+import type { OrderResult } from "../../api/api";
 import { formatEUR } from "../../lib/format";
 import { AuthModal } from "../AuthModal";
 import type { Product, ShippingDetails, PaymentDetails } from "../../types";
@@ -57,7 +57,6 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
   // Discount only applies to one-time goods (accessories, upfront device cost)
   const bundleDiscount = subtotal * bundleDiscountRate;
   const onetimeTotal = subtotal - bundleDiscount;
-  const total = onetimeTotal; // kept for legacy confirm-step usage
   const onetimeItemCount = useMemo(
     () => items.filter((i) => i.billing === "onetime").reduce((sum, i) => sum + i.qty, 0),
     [items],
@@ -329,7 +328,9 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                           <img src={product.image} alt={product.name} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
                           <div style={{ flex: 1 }}>
                             <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{product.name}</p>
-                            <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{product.reasons[0]}</p>
+                            <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
+                              {product.specs.length ? product.specs.slice(0, 2).join(" · ") : product.trend}
+                            </p>
                           </div>
                           <div style={{ textAlign: "right", flexShrink: 0 }}>
                             <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{formatEUR(product.price)}</p>

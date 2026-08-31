@@ -2,10 +2,17 @@ import { useState, useRef, useEffect, useCallback, Fragment } from "react";
 import {
   Send, Mic, MicOff, Sparkles, ShoppingCart, X,
   Maximize2, Minimize2, Check, SquarePen, History, ChevronLeft, Plus, Trash2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useCart } from "../cart/CartContext";
 import { useAuth } from "../auth/AuthContext";
-import { askAssistant, fetchChatHistory, fetchConversations, resolveHistoryProducts } from "../api/mockApi";
+import {
+  askAssistant, askAssistantStream, deleteConversation,
+  fetchChatHistory, fetchConversations, resolveHistoryProducts,
+} from "../api/api";
+import { PreferencesPanel } from "./PreferencesPanel";
+import { AuthModal } from "./AuthModal";
+import { ColorDots } from "./ColorDots";
 import { formatEUR } from "../lib/format";
 import { useSpeechRecognition } from "../lib/useSpeechRecognition";
 import type { ChatMessage, Product } from "../types";
@@ -31,38 +38,17 @@ function generateConvId(): string {
   return id;
 }
 
-// ─── Conversation metadata (localStorage) ─────────────────────────────────────
+// ─── Conversation list entries ─────────────────────────────────────────────────
+// Served by the backend (title + updated_at per thread), never cached in
+// localStorage: names must not leak to the next user on a shared device.
 interface ConvMeta {
   id: string;
-  preview: string; // first user message text, truncated
+  preview: string; // conversation title (first user message, truncated server-side)
   updatedAt: number;
 }
 
-const CONVS_META_KEY = "oneshop-chat-convs";
-
-function loadConvMetas(): ConvMeta[] {
-  try { return JSON.parse(localStorage.getItem(CONVS_META_KEY) ?? "[]"); }
-  catch { return []; }
-}
-
-function upsertConvMeta(id: string, firstMsg: string): ConvMeta[] {
-  const existing = loadConvMetas();
-  const found = existing.find((c) => c.id === id);
-  const filtered = existing.filter((c) => c.id !== id);
-  // Keep original preview (first user message); only updatedAt changes on subsequent sends
-  filtered.unshift({ id, preview: found?.preview ?? firstMsg, updatedAt: Date.now() });
-  const trimmed = filtered.slice(0, 50);
-  localStorage.setItem(CONVS_META_KEY, JSON.stringify(trimmed));
-  return trimmed;
-}
-
-function eraseConvMeta(id: string): ConvMeta[] {
-  const list = loadConvMetas().filter((c) => c.id !== id);
-  localStorage.setItem(CONVS_META_KEY, JSON.stringify(list));
-  return list;
-}
-
 function relativeTime(ts: number): string {
+  if (!ts) return "";
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "Just now";
@@ -78,11 +64,11 @@ function relativeTime(ts: number): string {
 const WELCOME: ChatMessage = {
   id: 1,
   role: "assistant",
-  text: "Hi — I'm your OneShop AI assistant. Ask about phones, plans, bundles, or accessories and I'll find the best match for you.",
+  text: "Hi — I'm your OneShop AI assistant. Ask about phones, tablets, laptops, wearables, audio, accessories, or plans — tell me your budget and what matters to you, and I'll find the best match.",
   timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
 };
 
-const CHIPS = ["Show me plans", "Best camera phone", "Bundle deals", "Smartphones"];
+const CHIPS = ["Phone between €500-800", "Best camera phone", "Noise-cancelling audio", "Show me deals"];
 
 // ─── History loading skeleton ──────────────────────────────────────────────────
 function HistorySkeleton() {
@@ -162,21 +148,13 @@ function ProductCard({
   product,
   expanded,
   onAdd,
-  onWhy,
   inCart,
-  whyOpen,
-  showWhy,
 }: {
   product: Product;
   expanded: boolean;
   onAdd: () => void;
-  onWhy: () => void;
   inCart: boolean;
-  whyOpen: boolean;
-  showWhy: boolean;
 }) {
-  const hasWhy = showWhy && product.reasons.length > 0;
-
   return (
     <div
       style={{
@@ -244,11 +222,39 @@ function ProductCard({
           {product.name}
         </p>
 
+        {/* Rating + key specs */}
+        {(product.reviews > 0 || product.specs.length > 0) && (
+          <p style={{ fontSize: 9.5, color: "var(--muted-foreground)", marginBottom: 4, lineHeight: 1.4 }}>
+            {product.reviews > 0 && <>★ {product.stars} ({product.reviews.toLocaleString()})</>}
+            {product.reviews > 0 && product.specs.length > 0 && " · "}
+            {product.specs.slice(0, 2).join(" · ")}
+          </p>
+        )}
+
+        {/* Available colors */}
+        {product.colors.length > 0 && (
+          <div style={{ marginBottom: 6 }}>
+            <ColorDots colors={product.colors} size={11} max={5} />
+          </div>
+        )}
+
         {/* Price */}
         <div style={{ marginBottom: 9 }}>
           <span style={{ fontSize: expanded ? 14 : 13, fontWeight: 700, color: "var(--foreground)" }}>
             {formatEUR(product.price)}
           </span>
+          {product.originalPrice > 0 && (
+            <span
+              style={{
+                fontSize: 9.5,
+                color: "var(--muted-foreground)",
+                textDecoration: "line-through",
+                marginLeft: 5,
+              }}
+            >
+              {formatEUR(product.originalPrice)}
+            </span>
+          )}
           {product.monthlyPrice > 0 && (
             <span
               style={{
@@ -293,62 +299,6 @@ function ProductCard({
             <><ShoppingCart size={11} />Add to cart</>
           )}
         </button>
-
-        {/* Why — text link, not an icon button */}
-        {hasWhy && (
-          <button
-            onClick={onWhy}
-            style={{
-              width: "100%",
-              marginTop: 7,
-              background: "none",
-              border: "none",
-              padding: "2px 0",
-              cursor: "pointer",
-              fontSize: 10,
-              color: whyOpen ? "var(--primary)" : "var(--muted-foreground)",
-              fontWeight: 500,
-              textAlign: "center",
-              textDecoration: "underline",
-              textUnderlineOffset: "2px",
-              textDecorationColor: "currentColor",
-              transition: "color 0.15s",
-            }}
-          >
-            {whyOpen ? "Hide explanation" : "Why this recommendation?"}
-          </button>
-        )}
-
-        {/* Why panel */}
-        {whyOpen && hasWhy && (
-          <div
-            style={{
-              marginTop: 8,
-              padding: "8px 10px",
-              background: "rgba(var(--primary-rgb),0.05)",
-              borderRadius: 8,
-              borderLeft: "2px solid var(--primary)",
-              animation: "why-in 0.14s ease-out",
-            }}
-          >
-            {product.reasons.slice(0, 2).map((reason, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  gap: 5,
-                  fontSize: 10,
-                  color: "var(--foreground)",
-                  lineHeight: 1.5,
-                  marginTop: i > 0 ? 4 : 0,
-                }}
-              >
-                <Check size={9} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />
-                {reason}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -409,6 +359,47 @@ const DockIcon = ({ toLeft }: { toLeft: boolean }) => (
   </svg>
 );
 
+// ─── Sign-in gate ──────────────────────────────────────────────────────────────
+function SignInGate({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <div
+      style={{
+        flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: 14, padding: "32px 28px", textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 52, height: 52, borderRadius: "50%",
+          background: "linear-gradient(145deg, var(--primary) 0%, #7C3AED 100%)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <Sparkles size={22} color="#fff" />
+      </div>
+      <p style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground)", margin: 0 }}>
+        Sign in to chat
+      </p>
+      <p style={{ fontSize: 12.5, color: "var(--muted-foreground)", lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
+        Your conversations, budget, and preferences are saved to your account, so the
+        assistant remembers you on every device.
+      </p>
+      <button
+        onClick={onSignIn}
+        style={{
+          marginTop: 4, padding: "10px 26px", borderRadius: 12, border: "none",
+          background: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", transition: "opacity 0.15s",
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.88"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+      >
+        Sign in or create account
+      </button>
+    </div>
+  );
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 export function FloatingChat() {
   const [open, setOpen] = useState(false);
@@ -420,15 +411,16 @@ export function FloatingChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [whyId, setWhyId] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyCount, setHistoryCount] = useState(0); // how many messages came from history
   const [conversationId, setConversationId] = useState<string>(loadConvId);
-  const [view, setView] = useState<"chat" | "list">("chat");
-  const [convMetas, setConvMetas] = useState<ConvMeta[]>(() => loadConvMetas());
-  const [backendConvIds, setBackendConvIds] = useState<string[]>([]);
+  const [view, setView] = useState<"chat" | "list" | "prefs">("chat");
+  const [convMetas, setConvMetas] = useState<ConvMeta[]>([]);
   // Ref so loadHistory / send can always read the latest conv ID without being in deps
   const convIdRef = useRef(conversationId);
+
+  const { user } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -437,18 +429,29 @@ export function FloatingChat() {
   // Keep ref in sync with state so callbacks always see the latest value
   useEffect(() => { convIdRef.current = conversationId; }, [conversationId]);
   const { addItem, isInCart } = useCart();
-  const { user } = useAuth();
+
   const { listening, supported: micSupported, toggleListening } = useSpeechRecognition((t) =>
     setInput((prev) => (prev ? `${prev} ${t}` : t)),
   );
 
   useEffect(() => { localStorage.setItem(DOCK_KEY, dock); }, [dock]);
 
-  // Fetch all conversation IDs from the backend when the list panel opens
+  const refreshConversations = useCallback(async (): Promise<ConvMeta[]> => {
+    try {
+      const list = await fetchConversations();
+      const metas = list.map((c) => ({ id: c.id, preview: c.title, updatedAt: c.updatedAt }));
+      setConvMetas(metas);
+      return metas;
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Refresh the thread list from the backend whenever the list panel opens.
   useEffect(() => {
-    if (view !== "list") return;
-    fetchConversations().then(setBackendConvIds).catch(() => {});
-  }, [view]);
+    if (view !== "list" || !user) return;
+    refreshConversations();
+  }, [view, user, refreshConversations]);
 
   useEffect(() => {
     if (open) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -520,7 +523,6 @@ export function FloatingChat() {
     setMessages([WELCOME]);
     setHistoryCount(0);
     historyLoadedRef.current = true;
-    setWhyId(null);
     setView("chat");
   }, []);
 
@@ -539,31 +541,35 @@ export function FloatingChat() {
   // has prior history — mirrors ChatGPT/Claude where you land on the conversation picker.
   // Otherwise go straight to the chat (WELCOME message path).
   useEffect(() => {
-    if (open && !historyLoadedRef.current) {
-      const metas = loadConvMetas();
-      if (metas.length > 0) {
-        setView("list");
-        historyLoadedRef.current = true; // don't auto-load any single thread yet
-      } else {
-        loadHistory();
-      }
+    if (open && user && !historyLoadedRef.current) {
+      historyLoadedRef.current = true; // don't auto-load any single thread yet
+      refreshConversations().then((metas) => {
+        if (metas.length > 0) {
+          setView("list");
+        } else {
+          startNewChat();
+        }
+      });
     }
-  }, [open, loadHistory]);
+  }, [open, user, refreshConversations, startNewChat]);
 
-  // Re-fetch after login or logout.
-  // The conversation_id is kept: merge_guest_into_user already copied the guest's
-  // conversations to the user session, so the same conv ID is valid under the new session_id.
-  // On logout the new guest session has no history → WELCOME will show.
+  // Reset all per-identity state when the session changes (login/logout), so
+  // nothing from the previous user — thread list, active thread, messages —
+  // is visible to the next one on this device.
   useEffect(() => {
     const handler = () => {
       setMessages([]);
       setHistoryCount(0);
-      historyLoadedRef.current = false;
-      if (open) loadHistory();
+      setConvMetas([]);
+      setConversationId("");
+      convIdRef.current = "";
+      saveConvId("");
+      setView("chat");
+        historyLoadedRef.current = false; // the open-panel effect re-initializes for the new identity
     };
     window.addEventListener("oneshop-session-changed", handler);
     return () => window.removeEventListener("oneshop-session-changed", handler);
-  }, [open, loadHistory]);
+  }, []);
 
   // No auth gate here — guests can add to cart. Cart requires auth at checkout, not add.
   const handleAdd = useCallback(
@@ -573,11 +579,10 @@ export function FloatingChat() {
 
   const send = (text: string) => {
     if (!text.trim() || typing) return;
-    const ts = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-    setMessages((prev) => [...prev, { id: Date.now(), role: "user", text, timestamp: ts }]);
+    const now = () => new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    setMessages((prev) => [...prev, { id: Date.now(), role: "user", text, timestamp: now() }]);
     setInput("");
     setTyping(true);
-    setWhyId(null);
 
     // If no conversation yet, generate one now so the first message starts a thread
     if (!convIdRef.current) {
@@ -586,51 +591,72 @@ export function FloatingChat() {
       convIdRef.current = newId;
     }
 
-    // Track this conversation in the local list (preview = first user message)
-    setConvMetas(upsertConvMeta(convIdRef.current, text.slice(0, 80)));
-
-    askAssistant(text, convIdRef.current)
-      .then(({ reply, products, conversationId: returnedId }) => {
-        // Backend echoes back the conversation_id (may have generated it server-side)
-        if (returnedId && returnedId !== convIdRef.current) {
-          setConversationId(returnedId);
-          saveConvId(returnedId);
-          convIdRef.current = returnedId;
-        }
+    const assistantId = Date.now() + 1;
+    let streamStarted = false;
+    const appendToken = (delta: string) => {
+      if (!streamStarted) {
+        streamStarted = true;
+        setTyping(false);
         setMessages((prev) => [
           ...prev,
-          {
-            id: Date.now() + 1,
-            role: "assistant",
-            text: reply,
-            products,
-            timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-          },
+          { id: assistantId, role: "assistant", text: delta, timestamp: now() },
         ]);
-      })
-      .catch(() =>
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            role: "assistant",
-            text: "Sorry, I couldn't reach the service right now. Please try again.",
-            timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-          },
-        ]),
-      )
-      .finally(() => setTyping(false));
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantId ? { ...m, text: m.text + delta } : m)),
+      );
+    };
+
+    const applyResult = ({ reply, products, conversationId: returnedId }: {
+      reply: string; products?: Product[]; conversationId: string;
+    }) => {
+      // Backend echoes back the conversation_id (may have generated it server-side)
+      if (returnedId && returnedId !== convIdRef.current) {
+        setConversationId(returnedId);
+        saveConvId(returnedId);
+        convIdRef.current = returnedId;
+      }
+      setMessages((prev) =>
+        streamStarted
+          ? prev.map((m) => (m.id === assistantId ? { ...m, text: reply, products } : m))
+          : [...prev, { id: assistantId, role: "assistant", text: reply, products, timestamp: now() }],
+      );
+    };
+
+    const showError = () =>
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== assistantId),
+        {
+          id: assistantId,
+          role: "assistant" as const,
+          text: "Sorry, I couldn't reach the service right now. Please try again.",
+          timestamp: now(),
+        },
+      ]);
+
+    (async () => {
+      try {
+        applyResult(await askAssistantStream(text, convIdRef.current, appendToken));
+      } catch {
+        if (streamStarted) {
+          showError();
+        } else {
+          // Streaming never started (proxy/SSE issue) — safe to retry non-streaming.
+          try {
+            applyResult(await askAssistant(text, convIdRef.current));
+          } catch {
+            showError();
+          }
+        }
+      } finally {
+        setTyping(false);
+      }
+    })();
   };
 
   const isExp = size === "expanded";
   const side = dock === "right" ? { right: 24 } : { left: 24 };
-
-  // Merge local metadata + any backend-only IDs (logged in on another device, etc.)
-  const localConvIds = new Set(convMetas.map((c) => c.id));
-  const serverOnlyMetas: ConvMeta[] = backendConvIds
-    .filter((id) => !localConvIds.has(id))
-    .map((id) => ({ id, preview: "", updatedAt: 0 }));
-  const allMetas: ConvMeta[] = [...convMetas, ...serverOnlyMetas];
 
   return (
     <>
@@ -715,8 +741,8 @@ export function FloatingChat() {
             flexShrink: 0,
           }}
         >
-          {view === "list" ? (
-            /* List view header */
+          {view !== "chat" ? (
+            /* List / preferences view header */
             <>
               <button
                 onClick={() => {
@@ -739,7 +765,9 @@ export function FloatingChat() {
               >
                 <ChevronLeft size={16} />
               </button>
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "var(--foreground)" }}>Conversations</span>
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "var(--foreground)" }}>
+                {view === "list" ? "Conversations" : "Your preferences"}
+              </span>
               <IconBtn
                 danger
                 title="Close"
@@ -808,12 +836,19 @@ export function FloatingChat() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 1 }}>
-                <IconBtn title="New chat" onClick={startNewChat}>
-                  <SquarePen size={14} />
-                </IconBtn>
-                <IconBtn title="History" onClick={() => setView("list")}>
-                  <History size={14} />
-                </IconBtn>
+                {user && (
+                  <>
+                    <IconBtn title="New chat" onClick={startNewChat}>
+                      <SquarePen size={14} />
+                    </IconBtn>
+                    <IconBtn title="History" onClick={() => setView("list")}>
+                      <History size={14} />
+                    </IconBtn>
+                    <IconBtn title="Preferences the assistant learned" onClick={() => setView("prefs")}>
+                      <SlidersHorizontal size={14} />
+                    </IconBtn>
+                  </>
+                )}
                 <IconBtn
                   title={dock === "right" ? "Move to left" : "Move to right"}
                   onClick={() => setDock((d) => (d === "right" ? "left" : "right"))}
@@ -838,8 +873,11 @@ export function FloatingChat() {
           )}
         </div>
 
+        {/* ── Sign-in gate (chat requires an account) ────────────────────────── */}
+        {!user && <SignInGate onSignIn={() => setAuthOpen(true)} />}
+
         {/* ── Conversation list ──────────────────────────────────────────────── */}
-        {view === "list" && (
+        {user && view === "list" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* New Chat button */}
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
@@ -861,20 +899,21 @@ export function FloatingChat() {
 
             {/* List */}
             <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }}>
-              {allMetas.length === 0 ? (
+              {convMetas.length === 0 ? (
                 <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
                   No past conversations yet.<br />
                   <span style={{ fontSize: 11, marginTop: 4, display: "block" }}>Start chatting to see your history here.</span>
                 </div>
               ) : (
-                allMetas.map((meta) => (
+                convMetas.map((meta) => (
                   <ConvItem
                     key={meta.id}
                     meta={meta}
                     active={meta.id === conversationId}
                     onSelect={() => switchToConversation(meta.id)}
                     onDelete={() => {
-                      setConvMetas(eraseConvMeta(meta.id));
+                      setConvMetas((metas) => metas.filter((m) => m.id !== meta.id));
+                      deleteConversation(meta.id).catch(() => {});
                       if (meta.id === conversationId) startNewChat();
                     }}
                   />
@@ -884,8 +923,11 @@ export function FloatingChat() {
           </div>
         )}
 
+        {/* ── Preferences ────────────────────────────────────────────────────── */}
+        {user && view === "prefs" && <PreferencesPanel />}
+
         {/* ── Messages ───────────────────────────────────────────────────────── */}
-        {view === "chat" && <div
+        {user && view === "chat" && <div
           style={{
             flex: 1,
             overflowY: "auto",
@@ -1017,10 +1059,7 @@ export function FloatingChat() {
                             product={p}
                             expanded={isExp}
                             onAdd={() => handleAdd(p)}
-                            onWhy={() => setWhyId((id) => (id === p.id ? null : p.id))}
                             inCart={isInCart(p.id)}
-                            whyOpen={whyId === p.id}
-                            showWhy={!!user}
                           />
                         ))}
                       </div>
@@ -1050,7 +1089,7 @@ export function FloatingChat() {
         </div>}
 
         {/* ── Suggestion chips ───────────────────────────────────────────────── */}
-        {view === "chat" && <div
+        {user && view === "chat" && <div
           style={{
             padding: "8px 16px",
             borderTop: "1px solid var(--border)",
@@ -1068,7 +1107,7 @@ export function FloatingChat() {
         </div>}
 
         {/* ── Input area ─────────────────────────────────────────────────────── */}
-        {view === "chat" && <div style={{ padding: "10px 14px 16px", flexShrink: 0 }}>
+        {user && view === "chat" && <div style={{ padding: "10px 14px 16px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ flex: 1, position: "relative" }}>
               <input
@@ -1155,6 +1194,8 @@ export function FloatingChat() {
         </div>}
       </div>
 
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
       <style>{`
         @keyframes dot-bounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
@@ -1168,9 +1209,6 @@ export function FloatingChat() {
           from { opacity: 0; transform: translateY(5px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes why-in {
-          from { opacity: 0; transform: scaleY(0.92); transform-origin: top; }
-          to   { opacity: 1; transform: scaleY(1); }
         }
         @keyframes skeleton-pulse {
           0%, 100% { opacity: 0.4; }
