@@ -1,93 +1,162 @@
+"""Deterministic eligibility engine — the source of truth for what is offerable.
+
+Pure functions: same input, same output. No LLM calls. The agent can phrase
+recommendations but can never offer a product these rules reject.
 """
-Deterministic Eligibility Engine. Owned by P2.
-THIS IS THE SOURCE OF TRUTH. The LLM can never override it.
+from __future__ import annotations
 
-EXPOSES:  filter_eligible(products, intent) -> list[EligibleProduct]
+from typing import Any, Optional
 
-Pure, deterministic functions: same input -> same output, ALWAYS.
-No LLM calls in here, ever. This is what makes the assistant trustworthy.
-"""
-from app.contracts.models import EligibleProduct, Intent, Product
+from app.contracts.models import (
+    AttributeConstraint,
+    EligibleProduct,
+    Product,
+    QueryFilters,
+    normalize_category,
+)
+from app.preferences.models import Preferences
+from app.retrieval.color_families import colors_match
 
 
-def _within_budget(p: Product, intent: Intent) -> bool:
-    if intent.budget_monthly_max is None:
+def filters_category(filters: QueryFilters) -> Optional[str]:
+    """The single category this turn is about, if determinable — used to pick
+    which per-category budget applies."""
+    for pool in (filters.categories, filters.subcategories, filters.product_types):
+        for name in pool:
+            category = normalize_category(name)
+            if category:
+                return category
+    return None
+
+
+def effective_filters(filters: QueryFilters, prefs: Preferences, browse_all: bool = False) -> QueryFilters:
+    """Merge persistent preferences into this turn's filters.
+
+    - Hard-excluded brands stay excluded across conversations, unless the user
+      explicitly asked for that brand this turn (the explicit ask wins).
+    - A stated budget persists until the turn provides its own price range —
+      except when browsing exhaustively (browse_all): "show me all tablets"
+      means the whole catalog section, not "all tablets in my budget".
+      Budgets are per category: a smartphone budget never constrains earbuds.
+    """
+    merged = filters.model_copy(deep=True)
+    include = {b.lower() for b in merged.brands_include}
+    for brand in prefs.hard_excluded_brands():
+        if brand not in include and brand not in (b.lower() for b in merged.brands_exclude):
+            merged.brands_exclude.append(brand)
+
+    budget = prefs.budget_for(filters_category(merged))
+    if (
+        not browse_all
+        and merged.price_min is None and merged.price_max is None
+        and budget and budget.source == "stated"
+    ):
+        merged.price_min = budget.min
+        merged.price_max = budget.max
+        merged.price_period = budget.period
+    return merged
+
+
+def _price_ok(p: Product, filters: QueryFilters) -> Optional[bool]:
+    """None = rule not applicable (no budget, or billing period mismatch)."""
+    if filters.price_min is None and filters.price_max is None:
+        return None
+    billing = "monthly" if p.is_monthly else "onetime"
+    if filters.price_period and filters.price_period != billing:
+        return None
+    price = p.effective_price
+    if filters.price_min is not None and price < filters.price_min:
+        return False
+    if filters.price_max is not None and price > filters.price_max:
+        return False
+    return True
+
+
+def _attribute_value(p: Product, name: str) -> Any:
+    if name in ("color", "colors"):
+        return p.colors
+    if name == "rating":
+        return p.rating
+    if name == "brand":
+        return p.brand
+    return p.attributes.get(name)
+
+
+def _attribute_ok(p: Product, c: AttributeConstraint) -> bool:
+    name = c.name.strip().lower()
+    if name in ("color", "colors"):
+        return colors_match(c.values or [], p.colors)
+    value = _attribute_value(p, name)
+    if value is None:
+        return False
+    if c.op in ("gte", "lte"):
+        if c.number is None:
+            return True
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return False
+        return number >= c.number if c.op == "gte" else number <= c.number
+    wanted = [v.strip().lower() for v in (c.values or [])]
+    if c.op == "eq":
+        if c.number is not None:
+            try:
+                return float(value) == c.number
+            except (TypeError, ValueError):
+                return False
+        wanted = wanted or []
+    if not wanted:
         return True
-    # Only monthly-priced items (phones/plans) are budget-checked here.
-    if p.price_monthly <= 0:
-        return True
-    return p.price_monthly <= intent.budget_monthly_max
+    if isinstance(value, list):
+        return bool({str(v).lower() for v in value} & set(wanted))
+    return str(value).lower() in wanted
 
 
-# Brand only meaningfully partitions PHONES in this catalog - plans, accessories
-# and bundles are all Telekom's own. So a brand ask ("show me an iPhone") filters
-# phones by brand but must NOT exclude the Telekom case/plan/bundle that pairs
-# with it. This also stops a brand from a prior phone turn leaking onto a later
-# "yes, add a case" follow-up and wrongly filtering out every accessory.
-_BRANDED_TYPES = {"phone"}
-
-
-def _brand_matches(p: Product, intent: Intent) -> bool:
-    if not intent.brand or p.type.value not in _BRANDED_TYPES:
-        return True
-    return p.brand == intent.brand
-
-
-def _type_matches(p: Product, intent: Intent) -> bool:
-    # When the customer explicitly names product types, only those are offerable.
-    if not intent.product_types:
-        return True
-    return p.type.value in intent.product_types
-
-
-def evaluate(p: Product, intent: Intent) -> EligibleProduct:
-    """Run every rule against one product and record why it passed/failed.
-
-    These are HARD, deterministic constraints - the LLM proposes candidates, but
-    only products that clear every rule here are offerable. This is what stops
-    "show me an iPhone for €20" from silently returning a Samsung."""
+def evaluate(p: Product, filters: QueryFilters, prefs: Preferences) -> EligibleProduct:
     reasons: list[str] = []
     failed: list[str] = []
 
-    # Rule: in stock
-    if p.in_stock and p.stock > 0:
-        reasons.append("in_stock")
-    else:
-        failed.append("out_of_stock")
+    def check(passed: Optional[bool], reason: str, failure: str) -> None:
+        if passed is None:
+            return
+        (reasons if passed else failed).append(reason if passed else failure)
 
-    # Rule: within budget
-    if _within_budget(p, intent):
-        reasons.append("within_budget")
-    else:
-        failed.append("over_budget")
+    if filters.in_stock_only:
+        check(p.in_stock and p.stock > 0, "in_stock", "out_of_stock")
 
-    # Rule: matches the requested brand (if any)
-    if _brand_matches(p, intent):
-        if intent.brand:
-            reasons.append("brand_match")
-    else:
-        failed.append("brand_mismatch")
+    check(_price_ok(p, filters), "within_budget", "over_budget")
 
-    # Rule: matches the requested product type(s) (if any)
-    if _type_matches(p, intent):
-        if intent.product_types:
-            reasons.append("type_match")
-    else:
-        failed.append("wrong_type")
+    brand = p.brand.lower()
+    if filters.brands_include:
+        check(brand in (b.lower() for b in filters.brands_include), "brand_match", "brand_mismatch")
+    if filters.brands_exclude:
+        check(brand not in (b.lower() for b in filters.brands_exclude), "brand_allowed", "brand_excluded")
 
-    return EligibleProduct(
-        product=p,
-        eligible=len(failed) == 0,
-        reasons=reasons,
-        failed_rules=failed,
-    )
+    if filters.product_types:
+        check(p.type.value in filters.product_types, "type_match", "wrong_type")
+    if filters.categories:
+        check(p.category in filters.categories, "category_match", "wrong_category")
+    if filters.subcategories:
+        check(p.subcategory in filters.subcategories, "subcategory_match", "wrong_subcategory")
+
+    if filters.colors:
+        check(colors_match(filters.colors, p.colors), "color_match", "color_mismatch")
+
+    for constraint in filters.attributes:
+        name = constraint.name.strip().lower()
+        check(_attribute_ok(p, constraint), f"attr_{name}_ok", f"attr_{name}_failed")
+
+    if filters.min_rating is not None:
+        check(p.rating >= filters.min_rating, "rating_ok", "rating_too_low")
+    if filters.on_sale_only:
+        check(p.discount_pct > 0, "on_sale", "not_on_sale")
+
+    if p.id in prefs.rejected_products:
+        failed.append("rejected_by_user")
+
+    return EligibleProduct(product=p, eligible=not failed, reasons=reasons, failed_rules=failed)
 
 
-def filter_eligible(products: list[Product], intent: Intent) -> list[EligibleProduct]:
-    """Evaluate all candidates. Returns ALL (eligible flag set), so callers/receipts
-    can see what was rejected and why."""
-    return [evaluate(p, intent) for p in products]
-
-
-def eligible_only(products: list[Product], intent: Intent) -> list[EligibleProduct]:
-    return [e for e in filter_eligible(products, intent) if e.eligible]
+def filter_eligible(products: list[Product], filters: QueryFilters, prefs: Preferences) -> list[EligibleProduct]:
+    """Evaluate every candidate, keeping rejects (with reasons) for the receipts."""
+    return [evaluate(p, filters, prefs) for p in products]
