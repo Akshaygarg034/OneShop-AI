@@ -1,96 +1,80 @@
-"""
-Central config. SHARED.
+"""Typed application settings, loaded once from the environment / .env file."""
+from functools import lru_cache
 
-MOCK_MODE is the key switch:
-  - MOCK_MODE=true  -> everything runs on fake data, no API keys / Qdrant needed.
-                       This is how the whole team starts (Checkpoint C1).
-  - MOCK_MODE=false -> intent extraction + "why" explanations call OpenAI. Both
-                       paths catch any failure (missing/bad key, rate limit, network,
-                       malformed response) and fall back to the mock/template
-                       behaviour automatically, so flipping this can never 500 the
-                       app - it's "prefer real, degrade safely," not a hard switch.
-
-Read from a .env file (see .env.example).
-"""
-import logging
-import os
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _bool(name: str, default: str = "true") -> bool:
-    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    environment: str = "development"
+
+    # OpenAI
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    embed_model: str = "text-embedding-3-small"
+    embed_dimensions: int = 256
+
+    # Qdrant
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
+    qdrant_collection: str = "shop_catalog"
+    qdrant_memory_collection: str = "conversation_memory"
+
+    # Supabase (Postgres). backend "memory" is for tests/local dev only.
+    storage_backend: str = "supabase"  # supabase | memory
+    supabase_url: str = ""
+    supabase_key: str = ""
+    # Direct Postgres connection string (optional). When set, the server applies
+    # db/schema.sql automatically at startup instead of requiring a manual run.
+    supabase_db_url: str = ""
+    catalog_table: str = "catalog_products"
+
+    # Auth
+    auth_secret: str = ""
+    auth_token_ttl_seconds: int = 60 * 60 * 24 * 7
+    # When true, the chat endpoints require a logged-in account (guest sessions
+    # can still browse and manage a cart). When false, guests can chat and their
+    # history/preferences merge into their account on login.
+    require_login_for_chat: bool = True
+
+    # CORS: comma-separated list of allowed origins.
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    # Conversation memory tuning
+    history_window: int = 10          # recent messages sent verbatim to the LLM
+    summary_threshold: int = 20       # messages before older turns are folded into a summary
+    memory_recall_top_k: int = 3      # semantic snippets recalled from past conversations
+
+    # Retrieval / ranking
+    retrieval_top_k: int = 24
+    recommendation_count: int = 3   # default cards per turn
+    max_recommendations: int = 5    # hard cap, honored when the user asks for "all"/N
+    catalog_cache_ttl_seconds: int = 60
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def uses_supabase(self) -> bool:
+        return self.storage_backend == "supabase"
+
+    @model_validator(mode="after")
+    def _validate_required(self) -> "Settings":
+        if self.storage_backend not in ("supabase", "memory"):
+            raise ValueError("STORAGE_BACKEND must be 'supabase' or 'memory'")
+        if self.uses_supabase and not (self.supabase_url and self.supabase_key):
+            raise ValueError("SUPABASE_URL and SUPABASE_KEY are required when STORAGE_BACKEND=supabase")
+        if self.environment != "test":
+            if not self.openai_api_key:
+                raise ValueError("OPENAI_API_KEY is required")
+            if len(self.auth_secret) < 32 or self.auth_secret == "dev-insecure-secret-change-me":
+                raise ValueError("AUTH_SECRET must be a unique value of at least 32 characters")
+        return self
 
 
-# Global mock switch (start with everything mocked).
-MOCK_MODE = _bool("MOCK_MODE", "true")
-
-# OpenAI (intent extraction + "why" explanations). Direct openai SDK - no
-# langchain wrapper, so this has no dependency conflict with the RAG stack.
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
-# Qdrant (P2)
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "telekom_catalog")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
-# Embeddings (P2) - Grok has no embeddings API, so use a local open model.
-EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-# Local directory where the downloaded model is cached. Once downloaded it is
-# read from disk on every subsequent start - no internet.
-#
-# IMPORTANT: this must live OUTSIDE backend/ (a sibling of it, not inside it).
-# `uvicorn --reload` watches the current working directory (backend/, per the
-# documented run command) for file changes. sentence-transformers/huggingface_hub
-# write lock files here on every embed call - if this dir were under backend/,
-# every single query would touch a watched file, trigger a full server reload,
-# wipe the in-process model cache (see app/rag/retriever.py's @lru_cache), and
-# force the ~90MB model to reload on the very next request. That was exactly the
-# "model reloads on every query" bug - fixed by moving the cache out of the
-# watched tree, not by changing the caching code itself.
-MODEL_CACHE_DIR = os.getenv(
-    "MODEL_CACHE_DIR",
-    os.path.join(os.path.dirname(__file__), "..", "..", ".model_cache"),
-)
-
-# Semantic retrieval switch, independent of MOCK_MODE so RAG can be real while
-# intent/recommendation still run on their mocks. When true, retrieve() does a
-# Qdrant vector search and falls back to keyword matching if Qdrant/deps are
-# unavailable. Requires the RAG deps installed and the collection ingested.
-RAG_ENABLED = _bool("RAG_ENABLED", "false")
-
-# Session persistence (P4).
-#   SESSION_BACKEND: auto | memory | supabase
-#     auto     -> Supabase if SUPABASE_URL+KEY are set, else in-memory.
-#     memory   -> always in-memory (POC default; wiped on restart).
-#     supabase -> require Supabase (still falls back to memory if unreachable).
-SESSION_BACKEND = os.getenv("SESSION_BACKEND", "auto")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")   # service_role key (POC: RLS disabled)
-
-# Auth (P4). Same backend selection as sessions - Supabase `users` table if
-# configured, else an in-memory store. Tokens are self-contained (hmac-signed),
-# so no server-side token storage/dependency is needed.
-AUTH_SECRET = os.getenv("AUTH_SECRET", "dev-insecure-secret-change-me")
-AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", str(60 * 60 * 24 * 7)))  # 7 days
-
-# Path to the legacy catalog file (P2 owns the data). Used as a final fallback.
-CATALOG_PATH = os.getenv(
-    "CATALOG_PATH",
-    os.path.join(os.path.dirname(__file__), "..", "data", "catalog.json"),
-)
-
-# Catalog source:
-#   auto/postgres -> read prices/stock from the Supabase `catalog_products` table,
-#                    falling back to the JSON data files if it's empty/unreachable.
-#   json          -> always read the JSON files (fast, offline; used by CI/evals).
-CATALOG_BACKEND = os.getenv("CATALOG_BACKEND", "auto")
-CATALOG_TABLE = os.getenv("CATALOG_TABLE", "catalog_products")
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
