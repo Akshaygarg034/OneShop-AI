@@ -1,14 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CartLineItem, Product } from "../types";
 import { getSessionId } from "../api/session";
-import { getProducts } from "../api/mockApi";
+import { BASE, authHeaders, getProducts } from "../api/api";
 
-// Cart state now lives on the backend, keyed by session_id (see
-// backend/app/session/store.py) - that's what makes the cart survive a
-// refresh and carry over across devices/channels sharing the same session_id.
-// This context is just a thin, optimistic client cache over /cart/*.
-// Keep this in sync with the catalog client: use the IPv4 backend explicitly.
-const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// Cart state lives on the backend, keyed by session_id — that's what makes it
+// survive a refresh and carry across devices. This context is a thin,
+// optimistic client cache over /cart/*.
 
 interface BackendCartItem {
   product_id: string;
@@ -47,17 +44,18 @@ const CartContext = createContext<CartContextValue | null>(null);
 // Used only for the brief gap before the catalog cache has loaded.
 function placeholderProduct(item: BackendCartItem): Product {
   return {
-    id: item.product_id, name: item.name, category: "", price: item.price,
-    monthlyPrice: item.billing === "monthly" ? item.price : 0, image: "",
-    badge: "", badgeColor: "", aiScore: 0, stars: 0, reviews: 0, tags: [],
-    reasons: [], inStock: true, trend: "",
+    id: item.product_id, name: item.name, brand: "", category: "", price: item.price,
+    monthlyPrice: item.billing === "monthly" ? item.price : 0, originalPrice: 0,
+    discountPct: 0, image: "", badge: "", badgeColor: "", stars: 0,
+    reviews: 0, colors: [], specs: [], attributes: {}, tags: [],
+    inStock: true, trend: "",
   };
 }
 
 function postCart(path: string, body: Record<string, unknown>): Promise<Response> {
   return fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ session_id: getSessionId(), ...body }),
   });
 }
@@ -81,7 +79,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const refresh = async () => {
     const seq = ++refreshSeq.current;
-    const res = await fetch(`${BASE}/cart/summary?session_id=${getSessionId()}`);
+    const res = await fetch(`${BASE}/cart/summary?session_id=${getSessionId()}`, {
+      headers: authHeaders(),
+    });
     if (!res.ok || seq !== refreshSeq.current) return;
     const data: BackendCartSummary = await res.json();
     if (seq !== refreshSeq.current) return;

@@ -1,13 +1,9 @@
-// Session identity. Owned by P4.
+// Session identity.
 //
 // Every guest browser gets its own random session_id (persisted in localStorage),
-// so carts/history don't leak between visitors. `?session=` in the URL overrides
-// it - that's the deliberate omnichannel/demo hook: open the SAME url on a second
-// device and you're looking at the SAME session (cart + history carry over).
-//
-// Once someone registers/logs in, the backend merges this guest session's cart
-// into a session keyed by their user_id, and we switch to using that as the
-// session_id from then on - same store, no new concept, permanent identity.
+// so carts/history don't leak between visitors. Once someone registers/logs in,
+// the backend merges the guest session into a session keyed by their user_id and
+// we switch to that as the session_id — permanent, cross-device identity.
 const SESSION_KEY = "session_id";
 
 function randomGuestId(): string {
@@ -18,8 +14,7 @@ function randomGuestId(): string {
 }
 
 export function getSessionId(): string {
-  const fromUrl = new URLSearchParams(window.location.search).get("session");
-  const id = fromUrl || localStorage.getItem(SESSION_KEY) || randomGuestId();
+  const id = localStorage.getItem(SESSION_KEY) || randomGuestId();
   localStorage.setItem(SESSION_KEY, id);
   return id;
 }

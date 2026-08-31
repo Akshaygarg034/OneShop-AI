@@ -1,26 +1,50 @@
 export interface Product {
   id: string;
   name: string;
+  brand: string;
   category: string;
   price: number;
   monthlyPrice: number;
+  /** Pre-discount price; 0 when the product isn't discounted. */
+  originalPrice: number;
+  discountPct: number;
   image: string;
   badge: string;
   badgeColor: string;
-  aiScore: number;
   stars: number;
   reviews: number;
+  colors: string[];
+  /** Human-readable key specs, e.g. ["8GB RAM", "128GB", "6.1\""] */
+  specs: string[];
+  attributes: Record<string, unknown>;
   tags: string[];
-  reasons: string[];
   inStock: boolean;
   trend: string;
-  /** Real signal breakdown behind `aiScore`, straight from the backend's
-   *  recommend.rank_products() - relevance / preference / budget / popularity,
-   *  each 0-1. Absent only if the catalog call failed to include it. */
-  signals?: Record<string, number>;
-  /** "cold_start" (ranked by relevance + popularity - we don't know this user
-   *  yet) or "personalized" (biased by their learned preference profile). */
-  personalizationBasis?: "cold_start" | "personalized";
+}
+
+/** The learned preference profile, as returned by GET /session/profile. */
+export interface PreferenceAffinity {
+  score: number;
+  hard: boolean;
+  last_seen: string;
+}
+
+export interface BudgetPreference {
+  min: number | null;
+  max: number | null;
+  period: "onetime" | "monthly";
+  source: "stated" | "inferred";
+}
+
+export interface Preferences {
+  /** Per-category budgets; the "any" key holds a general fallback budget. */
+  budgets: Record<string, BudgetPreference>;
+  brands: Record<string, PreferenceAffinity>;
+  categories: Record<string, PreferenceAffinity>;
+  features: Record<string, PreferenceAffinity>;
+  attributes: Record<string, { min?: number; max?: number; values?: string[] }>;
+  rejected_products: Record<string, string>;
+  prefers_deals: boolean;
 }
 
 export interface CartLineItem {
