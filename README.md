@@ -1,186 +1,101 @@
-# Telekom Smart Shopping Assistant
+# Smart Shopping Assistant
 
-An AI shopping assistant for Deutsche Telekom (DTDL Talent Hack, Problem Statement 5). Grounded, trustworthy product recommendations across web (OneShop) and mobile (OneApp).
+An AI-powered consumer intelligence engine that personalizes shopping across web and mobile:
+conversational shopping assistance, personalized recommendations, contextual next-best actions,
+intelligent cart optimization, and durable cross-channel identity.
 
-> **New here? Read** `START_HERE.md` **first**.Full plan: `PROJECT_OVERVIEW.md` · Who-does-what: `TEAM_TASKS_AND_WORKFLOW.md`
-
-## Quick start (mock mode — no API keys needed)
-
-**Backend**
-
-```bash
-cd backend
-python -m venv .venv && source .venv/Scripts/activate   # Windows Git Bash
-pip install fastapi "uvicorn[standard]" pydantic python-dotenv
-cp .env.example .env          # MOCK_MODE=true by default
-uvicorn app.main:app --reload
-# -> http://localhost:8000/docs
-```
-
-**Frontend**
-
-```bash
-cd frontend
-npm install
-npm run dev
-# -> http://localhost:5173
-```
-
-**Run the eval harness (proof it works)**
-
-```bash
-cd backend && python -m evals.run_evals
-```
-
-## How it works (the core idea)
-
-> **AI generates. Deterministic rules decide**.The LLM (OpenAI) converses, ranks, and explains. A deterministic engine decides what's actually offerable (stock / budget / eligibility). The AI can never recommend a product the rules reject — so it never hallucinates.
-
-Pipeline: `intent (P1) → retrieve (P2) → eligibility (P2) → recommend (P3) → response`, with session/cart/omnichannel by P4.
-
-## Mock-first workflow
-
-The whole app runs on **mock data** today (`MOCK_MODE=true`). Each person replaces their own mock with real code, then flips their part to real — nobody is blocked. See `TEAM_TASKS_AND_WORKFLOW.md`.
-
-## Stack
-
-OpenAI · LangGraph · FastAPI · Qdrant + sentence-transformers · React (Vite)# 🛍️ Telekom Smart Shopping Assistant
-
-AI-powered omnichannel shopping assistant built for the **Deutsche Telekom Talent Hack (Problem Statement 5)**.
-
-This repository contains both the **Frontend** and **Backend** applications.
+**Stack:** FastAPI · LangGraph · OpenAI · Qdrant (vectors) · Supabase/Postgres (data) · React + Vite
 
 ```
 Smart-Shopping-Assistant/
-├── backend/        # FastAPI Backend
-├── frontend/       # React Frontend
-├── deliverables/   # Presentation & architecture diagrams
-└── docs/
+├── backend/     # FastAPI + LangGraph agent (see backend/README.md)
+├── frontend/    # React storefront + chat UI
+└── docker-compose.yml
 ```
 
----
+## How it works
 
-# 📋 Prerequisites
+**AI generates, deterministic rules decide.** One LLM call per turn understands the message —
+intent, hard constraints (budget/brand/color/specs), and durable preference changes. Retrieval
+pushes those constraints into Qdrant as payload filters, a deterministic eligibility engine
+re-verifies every candidate against live catalog data, and a transparent scoring engine ranks
+what's left. The LLM phrases the reply (streamed over SSE) but can never recommend a product
+the rules rejected.
 
-Before getting started, ensure the following are installed:
+The agent is a LangGraph `StateGraph`:
 
-- Python 3.11+
-- Node.js 20+
-- npm
-- Git
-
----
-
-# ⚙️ Backend Setup
-
-## 1. Clone the Repository
-
-```bash
-git clone https://github.com/OmJangid206/Smart-Shopping-Assistant.git
-cd Smart-Shopping-Assistant/backend
+```
+load_context → understand ─┬→ retrieve → evaluate → rank → respond (streaming) ─┐
+                           ├→ greeting / off-topic / clarify / cart-question ───┤
+                           └→ preference-only acknowledgement ──────────────────┴→ persist
 ```
 
-## 2. Create a Virtual Environment
+**Preference learning** combines two signal sources, persisted per user:
+- *Conversational*: "my budget is 500–800", "never show me Apple", "I need a great camera",
+  "actually Apple is fine now" — extracted as structured deltas with hard exclusions,
+  soft affinities, recency decay, and retraction.
+- *Behavioral*: add-to-cart, remove, and purchase events adjust brand/category/feature
+  affinities; purchases set an inferred budget prior (ranking-only, never a hard filter).
 
-### Windows
+**Conversation memory at scale**: recent messages verbatim + a rolling summary per
+conversation + semantic recall (RAG) over all past messages in Qdrant — prompts stay
+bounded no matter how long the history grows.
+
+Amounts in any currency (Rs, ₹, $, €) are read as EUR — the catalog's currency — and the
+assistant says so.
+
+## Quick start
+
+Prerequisites: Python 3.11+, Node 20+, a Supabase project, a Qdrant instance (cloud or
+`docker compose up qdrant`), and an OpenAI API key.
+
+**1. Backend**
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-## 3. Install Dependencies
-
-```bash
-python -m pip install --upgrade pip
+cd backend
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-## 4. Configure Environment
-
-```bash
-cp .env.example .env
-```
-
-Windows
-
-```bash
-copy .env.example .env
-```
-
-Update the required values in `.env`.
-
-## 5. Run the Backend
-
-```bash
+cp .env.example .env        # fill in keys; AUTH_SECRET: python -c "import secrets; print(secrets.token_urlsafe(48))"
+python update_catalog.py    # seed Supabase + Qdrant with data/catalog.json (50 products)
 uvicorn app.main:app --reload
+# http://127.0.0.1:8000/docs · /health · /ready
 ```
 
-Backend API
+Database tables and Qdrant collections are created automatically at startup when
+`SUPABASE_DB_URL` (direct Postgres connection string) is set in `.env`. Without it,
+run `backend/db/schema.sql` once in the Supabase SQL editor instead — the server
+tells you if the tables are missing.
 
-```
-http://127.0.0.1:8000/health
-```
-
-Swagger Documentation
-
-```
-http://127.0.0.1:8000/docs
-```
-
----
-
-# 💻 Frontend Setup
-
-Open a new terminal.
+**2. Frontend**
 
 ```bash
 cd frontend
-```
-
-Install dependencies.
-
-```bash
 npm install
+npm run dev                 # http://localhost:5173
 ```
 
-Start the development server.
+**Verify**
 
 ```bash
-npm run dev
+cd backend
+python -m pytest tests      # unit + API contract tests (no network needed)
+python -m evals.run_evals   # behavioral evals against the real LLM pipeline
+cd ../frontend && npm run typecheck
 ```
 
-Frontend
+## Docker
 
+```bash
+docker compose up --build   # Qdrant + backend on :8000 (Supabase stays cloud)
 ```
-http://localhost:5173
-```
 
----
+## Security model
 
-
-# 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| `backend/README.md` | Backend installation and configuration |
-| `PROJECT_OVERVIEW.md` | Project overview |
-
----
-
-# 📦 Deliverables
-
-Presentation and high-level design (HLD) assets are in the `deliverables/` folder:
-
-| File | Description |
-|------|-------------|
-| `deliverables/Smart_Shopping_Assistant.pptx` | Project presentation (PowerPoint) |
-| `deliverables/high_level_diagram.svg` | High-level architecture diagram (SVG) |
-| `deliverables/Smart_Shopping_Assistant_Architecture.drawio` | Editable architecture diagram (draw.io) |
+- JWT access tokens (PyJWT/HS256), Argon2id password hashing (legacy hashes re-hash on login).
+- Chat requires a signed-in account by default (`REQUIRE_LOGIN_FOR_CHAT=true`); guests can
+  still browse and manage a cart, which merges into their account on login. Set the flag to
+  `false` for guest-first chat (the Amazon-style pattern).
+- Every session-scoped endpoint — chat, cart, history, profile — verifies ownership:
+  guest sessions are unguessable capabilities; account sessions require a matching bearer token.
+- Rate limiting on auth and LLM-spending endpoints; CORS origin allowlist; RLS enabled on all
+  tables (service-role key only, server-side).

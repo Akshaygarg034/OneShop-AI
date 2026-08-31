@@ -1,183 +1,74 @@
-# 🛍️ Telekom Smart Shopping Assistant – Backend
+# Backend — FastAPI + LangGraph agent
 
-> AI-powered conversational commerce backend built with **FastAPI, LangGraph, OpenAI, Qdrant, and Supabase**.
+## Layout
 
-This backend powers the Telekom Smart Shopping Assistant by understanding customer intent, retrieving relevant products, applying business rules, and generating personalized recommendations.
-
----
-
-# 📋 Table of Contents
-
-- Overview
-- Project Structure
-- Installation
-- Running the Application
-- Production Setup
-- Environment Variables
-
----
-
-# 🚀 Overview
-
-Key capabilities include:
-
-- 🤖 Conversational AI shopping assistant
-- 🔍 Intelligent product search
-- 🎯 Personalized recommendations
-- 🛒 Shopping cart management
-- 👤 User authentication
-- 🧠 Session management
-- ⚡ Deterministic recommendation engine
-- 📦 Product catalog
-
----
-
-# 📁 Project Structure
-
-```text
-backend/
-├── app/
-├── data/
-├── evals/
-├── requirements.txt
-├── update_catalog.py
-├── .env.example
-├── README.md
-└── ARCHITECTURE.md
+```
+app/
+├── main.py               # app factory, CORS, rate limiting, /health + /ready probes
+├── config.py             # pydantic-settings; fails fast on missing/weak config
+├── clients.py            # shared async OpenAI / Qdrant / Supabase clients
+├── agents/
+│   ├── graph.py          # the LangGraph StateGraph + run_turn()
+│   ├── understand.py     # one structured LLM call: intent + filters + preference deltas
+│   ├── respond.py        # streaming reply composer + deterministic templates
+│   └── schemas.py        # Understanding (structured-output schema)
+├── preferences/          # models, learning engine (deltas/events/decay/merge), store
+├── conversations/        # per-message persistence, rolling summaries, semantic recall
+├── retrieval/            # catalog TTL cache, Qdrant ingestion, hybrid retriever
+├── engine/eligibility.py # deterministic rules — the source of truth for offerability
+├── recommend/            # signal-based ranking, diversification, next-best actions
+├── session/store.py      # cart with optimistic-concurrency writes, checkout, guest merge
+├── auth/                 # Argon2 + JWT, user store, session-ownership checks
+├── api/                  # chat (JSON + SSE), cart, catalog, auth, profile routers
+├── contracts/models.py   # shared Pydantic contracts (Product, ChatResponse, ...)
+├── bootstrap.py          # auto-creates DB tables + Qdrant collections at startup
+└── observability.py      # JSON logs + request-id middleware
+db/schema.sql              # idempotent Supabase schema (auto-applied via SUPABASE_DB_URL)
+data/catalog.json          # 50-product seed catalog with rich per-category attributes
+update_catalog.py          # sync catalog.json → Supabase + Qdrant (idempotent)
+evals/run_evals.py         # behavioral evals against the real LLM pipeline
+tests/                     # unit + API contract tests (memory backend, LLM mocked)
 ```
 
----
+## Configuration
 
-# ⚙️ Installation
+Copy `.env.example` → `.env`. Required: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`,
+`QDRANT_URL` (+ `QDRANT_API_KEY` for cloud), and a ≥32-char `AUTH_SECRET`.
+`STORAGE_BACKEND=memory` runs everything in-process (tests/offline dev) — carts,
+preferences, and conversations then don't survive a restart.
 
-## 1. Clone the Repository
+Set `SUPABASE_DB_URL` (dashboard → Settings → Database → connection string) and the
+server applies `db/schema.sql` on every startup — fully idempotent and non-destructive:
+missing tables are created, missing columns are added, existing data is never touched.
+The REST API can't run DDL, so without this the schema must be applied manually once.
+
+## Chat API
+
+- `POST /chat` — full JSON response: `{reply_text, recommendations, products, nba, cart, receipts, conversation_id}`.
+  `products` embeds the recommended products in full, so clients need no follow-up catalog fetch.
+- `POST /chat/stream` — SSE: `token` (reply deltas) → `recommendations` (+ full products) → `nba` → `done`.
+- `GET /chat/history`, `GET /chat/conversations`, `DELETE /chat/conversations/{id}`.
+
+All session-scoped endpoints take `session_id` and, for logged-in sessions
+(`session_id == user_id`), require `Authorization: Bearer <jwt>`.
+
+## Catalog
+
+`data/catalog.json` is the single source. Each product carries practical commerce metadata —
+price/original price/discount, rating + review count, colors, stock, warranty, features, and a
+per-category `attributes` object (e.g. smartphones: `ram_gb`, `storage_gb`, `display_inch`,
+`battery_mah`, `main_camera_mp`, `chipset`, `os`, `connectivity`, …).
+
+`python update_catalog.py` validates and upserts to Supabase, then re-embeds into Qdrant with
+deterministic point IDs (re-runs update in place; removed products are pruned).
+Prices/stock are never embedded — they live in Postgres and are re-checked on every turn;
+the Qdrant payload carries filterable copies (brand, category, price, stock) refreshed on
+each sync so constraints can be pushed into the vector search.
+
+## Testing
 
 ```bash
-git clone https://github.com/OmJangid206/Smart-Shopping-Assistant.git
-cd Smart-Shopping-Assistant/backend
+python -m pytest tests      # fast, hermetic (memory backend, LLM mocked)
+python -m evals.run_evals   # real OpenAI + Qdrant: budget ranges, currency, exclusions,
+                            # attribute/color filters, behavioral signals, scope guards
 ```
-
-## 2. Create a Virtual Environment
-
-### Windows
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-## 3. Install Dependencies
-
-```bash
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-## 4. Configure Environment
-
-Create a local environment file.
-
-### Linux / macOS
-
-```bash
-cp .env.example .env
-```
-
-### Windows
-
-```bash
-copy .env.example .env
-```
-
-Update the required values in `.env`.
-
----
-
-# Run the Application
-
-Start the FastAPI development server.
-
-```bash
-uvicorn app.main:app --reload
-```
-
-The application will be available at:
-
-- **API:** http://127.0.0.1:8000
-- **Swagger UI:** http://127.0.0.1:8000/docs
-
-Verify the installation:
-
-```text
-GET http://127.0.0.1:8000/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
----
-
-# ☁️ Production Setup
-
-## OpenAI
-
-```text
-OPENAI_API_KEY=your-api-key
-MOCK_MODE=false
-```
-
-## Supabase
-
-```text
-SUPABASE_URL=your-supabase-url
-SUPABASE_KEY=your-supabase-key
-```
-
-## Qdrant
-
-Start Qdrant:
-
-```bash
-docker compose up -d qdrant
-```
-
-Generate embeddings:
-
-```bash
-python -m app.rag.ingestion
-```
-
-Enable semantic retrieval:
-
-```text
-RAG_ENABLED=true
-```
-
----
-
-# ⚙️ Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `MOCK_MODE` | Enable or disable OpenAI integration |
-| `RAG_ENABLED` | Enable semantic retrieval |
-| `CATALOG_BACKEND` | Catalog backend (`auto` or `json`) |
-| `SESSION_BACKEND` | Session backend (`memory`, `auto`, `supabase`) |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_KEY` | Supabase API key |
-| `QDRANT_URL` | Qdrant server URL |
-
----
