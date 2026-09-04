@@ -21,12 +21,14 @@ export function Logo({ size = 32, radius }: LogoProps) {
         style={{
           color: "#fff",
           fontWeight: 800,
-          fontSize: size * 0.56,
+          // Two glyphs need a smaller face than the old single "T" to stay inside the tile.
+          fontSize: size * 0.42,
+          letterSpacing: -0.5,
           lineHeight: 1,
           fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
-        T
+        AI
       </span>
     </div>
   );

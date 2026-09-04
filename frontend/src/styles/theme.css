@@ -3,48 +3,50 @@
 :root,
 [data-theme="dark"] {
   --font-size: 16px;
-  --background: #080808;
-  --surface: #0E0E0E;
-  --foreground: #F0F0F0;
-  --card: #111111;
-  --card-foreground: #F0F0F0;
-  --popover: #1A1A1A;
-  --popover-foreground: #F0F0F0;
+  /* Dark surfaces carry a faint magenta tint (hue ~275-290, very low saturation)
+     so they sit under the #E20074 brand colour instead of fighting it. */
+  --background: #17141A;
+  --surface: #1D1922;
+  --foreground: #F2EEF5;
+  --card: #201C26;
+  --card-foreground: #F2EEF5;
+  --popover: #262130;
+  --popover-foreground: #F2EEF5;
   --primary: #E20074;
-  --primary-hover: #C8006A;
+  --primary-hover: #FF1A8C;
   --primary-rgb: 226, 0, 116;
   --primary-foreground: #FFFFFF;
-  --secondary: #1A1A1A;
-  --secondary-foreground: #F0F0F0;
-  --muted: #1A1A1A;
-  --muted-foreground: #6B6B6B;
-  --muted-foreground-2: #8C8C8C;
-  --accent: #FF1A8C;
+  --secondary: #2A2532;
+  --secondary-foreground: #F2EEF5;
+  --muted: #2A2532;
+  --muted-foreground: #A39CAC;
+  --muted-foreground-2: #C4BDCC;
+  --accent: #FF2D96;
   --accent-foreground: #FFFFFF;
-  --destructive: #FF3B30;
+  --destructive: #FF5A50;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.10);
   --border-rgb: 255, 255, 255;
   --input: transparent;
-  --input-background: #1A1A1A;
-  --switch-background: #333333;
+  --input-background: #262130;
+  --switch-background: #423B4D;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #E20074;
-  --chart-1: #E20074;
-  --chart-2: #FF6B35;
-  --chart-3: #00C2A8;
-  --chart-4: #7B61FF;
-  --chart-5: #FFD700;
+  --ring: #FF2D96;
+  --chart-1: #FF2D96;
+  --chart-2: #FF8A5B;
+  --chart-3: #2ED6BC;
+  --chart-4: #9B85FF;
+  --chart-5: #FFD966;
   --radius: 0.5rem;
-  --sidebar: #080808;
-  --sidebar-foreground: #F0F0F0;
+  --sidebar: #1A1620;
+  --sidebar-foreground: #F2EEF5;
   --sidebar-primary: #E20074;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1A1A1A;
-  --sidebar-accent-foreground: #F0F0F0;
-  --sidebar-border: rgba(255, 255, 255, 0.07);
-  --sidebar-ring: #E20074;
+  --sidebar-accent: #2A2532;
+  --sidebar-accent-foreground: #F2EEF5;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: #FF2D96;
 }
 
 [data-theme="light"] {

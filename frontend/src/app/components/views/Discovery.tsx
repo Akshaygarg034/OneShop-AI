@@ -156,7 +156,7 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "contain",
+                      objectFit: "cover",
                       objectPosition: "center",
                       display: "block",
                       opacity: product.inStock ? 1 : 0.5,
