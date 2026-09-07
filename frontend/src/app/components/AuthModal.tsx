@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { X, Sparkles } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 
 type Mode = "login" | "register";
 
@@ -45,7 +46,7 @@ function Field({ label, value, onChange, type = "text", placeholder, required }:
 }
 
 export function AuthModal({ open, onClose }: AuthModalProps) {
-  const { login, register } = useAuth();
+  const { login, register, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -86,6 +87,18 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoogle = async (credential: string) => {
+    setError("");
+    setSubmitting(true);
+    try {
+      await signInWithGoogle(credential);
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed. Please try again.");
       setSubmitting(false);
     }
   };
@@ -171,6 +184,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             </button>
           ))}
         </div>
+
+        <GoogleSignInButton mode={mode} onCredential={handleGoogle} onError={setError} />
 
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {mode === "register" && (

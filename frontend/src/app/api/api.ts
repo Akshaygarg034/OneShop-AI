@@ -387,6 +387,23 @@ export async function loginUser(payload: LoginPayload): Promise<AuthUser> {
   return { userId: data.user_id, email: data.email, name: data.name, token: data.token };
 }
 
+/** Exchanges a Google ID token for our own session token. */
+export async function loginWithGoogle(credential: string): Promise<AuthUser> {
+  const res = await fetch(`${BASE}/auth/google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential, session_id: getSessionId() }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.detail || "Google sign-in failed. Please try again.");
+  }
+  const data = await res.json();
+  setAuthToken(data.token);
+  setSessionId(data.user_id);
+  return { userId: data.user_id, email: data.email, name: data.name, token: data.token };
+}
+
 export function logoutUser(): void {
   setAuthToken(null);
   clearSessionId();

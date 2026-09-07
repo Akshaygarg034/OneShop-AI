@@ -1,6 +1,10 @@
-# 🛍️ Smart Shopping Assistant
+<div align="center">
 
-**An AI-powered consumer intelligence engine that personalizes shopping end to end** — conversational product discovery, preference learning, intelligent cart optimization, and durable cross-device identity, built on a LangGraph agent that can never hallucinate a product.
+# 🛍️ OneShop AI
+
+**A conversational shopping assistant you can trust in front of customers.**
+
+It talks naturally, remembers each shopper, learns their preferences over time — and every product it recommends is real, in stock, and explainable.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
@@ -11,149 +15,245 @@
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 
+[Why it matters](#why-it-matters) · [What it does](#what-it-does) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Configuration](#configuration) · [Quality](#quality-and-evaluation)
+
+</div>
+
 ---
 
-## Why this is interesting
+## Why it matters
 
-Most LLM shopping bots either hallucinate products or bolt a chatbot onto a search box. This project takes a different stance:
+Putting an AI assistant in front of shoppers is risky. Most fail in one of two ways: they **make things up** — products, prices, discounts that don't exist — or they're a **chatbot bolted onto a search box** that forgets the customer the moment the conversation ends.
 
-> **AI generates. Deterministic rules decide.**
+OneShop AI is built on one rule:
 
-One structured LLM call per turn *understands* the message — intent, hard constraints, durable preference changes. Everything after that is deterministic: constraints are pushed down into the vector search as payload filters, an eligibility engine re-verifies every candidate against live catalog data, and a transparent scoring engine ranks what survives. The LLM streams the reply, but it **cannot recommend a product the rules rejected** — the guardrail is enforced in code, twice.
+> **The AI understands the customer. The code decides what to sell.**
 
-## Features
+The language model does what it is best at: reading a message and working out what the shopper wants. Everything that touches the catalog — what qualifies, what ranks first, what gets shown — is ordinary, testable software. The model writes the reply, but only from products that have already cleared every check. **It has no way to invent one.**
 
-**Conversational shopping**
-- Natural-language search over a richly-attributed catalog: *"a Samsung phone in black, under €700, with at least 128GB"* — brand, budget, color, and spec filters all enforced deterministically
-- Streaming replies (SSE) with product cards embedded in the stream — no follow-up fetches
-- Follow-up awareness: *"and in blue?"*, *"show me others"* (excludes what you've already seen), *"yes, relax the budget"* — and an honest "you've seen all N matches" instead of a dead end
-- Color families (*"titanium"* → gray, *"navy"* → blue) and currency normalization (Rs / ₹ / $ amounts read as EUR, disclosed in the reply)
-- Sub-category precision: asking for *speakers* never returns earbuds; *smartwatch* never returns fitness bands
+What that buys you:
 
-**Preference learning** (persisted per user, visible & editable in the UI)
-- Conversational: *"my budget for smartphones is 300–500"* (per-category budgets), *"never show me Apple"* (hard exclusion until retracted), *"I love photography"* (soft affinities with recency decay)
-- Behavioral: add-to-cart, remove, and purchase events adjust brand/category/feature affinities; purchases set an inferred budget prior (ranking-only, never a hard filter)
-- Browse vs. recommend distinction: *"show me all tablets"* lists the whole section; *"suggest a tablet"* applies your saved preferences
+| | |
+|---|---|
+| **Zero hallucinated products** | Every recommendation is a real item, at its real price, verified in stock at the moment it's shown |
+| **Customers who are remembered** | Preferences, budgets, and conversation history follow the shopper across sessions and devices |
+| **Recommendations you can defend** | Every result comes with a plain record of what was considered, which rules applied, and why it ranked where it did |
+| **Cost under control** | One model call to understand, one to reply — no runaway agent loops |
 
-**Memory at scale**
-- Per-message persistence (no growing blobs), rolling per-conversation summaries, and semantic recall over all past messages in Qdrant — prompt size stays bounded no matter how long the history grows
+---
 
-**Commerce**
-- Server-side cart with optimistic-concurrency writes, guest→account merge on login, catalog-grounded bundle suggestions, next-best-action nudges, persisted orders
+## What it does
 
-## Architecture
+An **agentic workflow** built on LangGraph: a graph of specialized agents, each owning one job — understanding, retrieval, guardrails, ranking, response — with deterministic hand-offs between them. Here is what that delivers.
+
+#### 🧭 Understanding agent
+- **One structured call extracts everything** — intent, hard constraints (price, brand, category, color, specs, rating, deals), a search phrase, and preference updates to remember.
+- **Intent routing** sends greetings, off-topic, cart, and vague requests to direct answers — the catalog is never touched, and no tokens are wasted.
+- **Multi-turn context** — refinements build on the last request, "alternatives" exclude what was shown, and relaxing a constraint re-runs the search without it.
+- **Normalization** — everyday product words, color shades, and foreign currencies resolve to canonical catalog terms.
+- **Browse vs. advise** — listing a whole section ignores personal preferences; asking for a recommendation applies them.
+- **Fallback extraction** keeps search working if the model call fails.
+
+#### 🔎 Grounded retrieval (RAG)
+- **Filter-inside-search** — hard constraints are pushed into the vector query, so results only ever contain qualifying products.
+- **Hybrid retrieval** — structured catalog scan takes over for spec-only queries or if the vector store is down.
+- **Live facts stay live** — prices and stock come from the database on every turn, never from an embedding.
+
+#### 🛡️ Deterministic guardrail
+- Every candidate is **re-verified in code** against live data and the shopper's profile — budget, stock, exclusions, category, color, specs, rating, rejected items.
+- Each rule that fires is **named**, so "no results" always says *which* requirement eliminated everything.
+- Enforced **twice** — at ranking and again before the reply is sent. The model cannot introduce a product.
+
+#### 📊 Explainable ranking
+- Four transparent signals: **request match, personal fit, budget headroom, quality**.
+- **Cold-start → personalized** — weights shift from relevance toward personal fit automatically as a profile matures.
+- **Diversified** top picks, never padded with weak matches.
+- A **receipt on every response** — what was retrieved, which rules fired, what was shown. No invented scores.
+
+#### 🧠 Preference modeling
+- **Explicit signals** from conversation: per-category budgets, brand and feature affinities, attribute preferences, deal-seeking, and hard exclusions that hold until retracted.
+- **Implicit signals** from behavior: cart adds, removals, and purchases reshape the profile; a purchase sets a soft budget expectation.
+- **Temporal decay** fades casual interests while budgets and exclusions persist. **Profile merge** on sign-in keeps the stronger signal.
+- **Transparent and editable** by the shopper.
+
+#### 💾 Short- and long-term memory
+- **Short-term** — the recent window goes to the model verbatim.
+- **Long-term** — older turns fold into a rolling summary; every message is indexed for **semantic recall** across past conversations.
+- **Constant prompt size** whether the customer has sent five messages or five hundred.
+
+#### 💬 Response agent
+- **Streaming replies** with product cards in the same stream — nothing to wait for, nothing to re-fetch.
+- Grounded strictly in the products that passed and the shopper's known profile.
+- **Next-best-action** nudges (compatible accessories, free-shipping distance) computed from catalog and cart — never generated.
+
+#### 🛒 Storefront and identity
+- Personally ranked browsing, a cart that can't lose concurrent updates, bundle suggestions, and multi-step checkout with saved orders.
+- **Guest-first, merge on sign-in** — cart, preferences, and history follow the shopper to any device.
+- Email/password and **Google Sign-In**, with Google identities linked to existing accounts by verified email.
+- Saved conversations, voice search, light and dark themes, and fault isolation between panels.
+
+---
+
+## How it works
 
 ```mermaid
 flowchart LR
     subgraph Frontend["React + Vite storefront"]
-        UI[Chat UI · Catalog · Cart · Preference panel]
+        UI[Chat · Catalog · Cart · Preferences]
     end
 
     subgraph Backend["FastAPI (async)"]
-        direction LR
         subgraph Agent["LangGraph StateGraph"]
-            LC[load_context] --> U[understand<br/><i>1 structured LLM call</i>]
+            LC[load context] --> U[understand<br/><i>1 structured LLM call</i>]
             U -->|shopping| R[retrieve] --> E[eligibility<br/><i>deterministic rules</i>] --> RK[rank] --> RS[respond<br/><i>streaming</i>]
-            U -->|greeting · off-topic · clarify · cart| D[templates]
+            U -->|greeting · off-topic<br/>clarify · cart| D[direct answer]
             RS --> P[persist]
             D --> P
         end
     end
 
     UI <-->|REST + SSE| Backend
-    R <--> Q[(Qdrant<br/>vectors + payload filters)]
-    P <--> S[(Supabase / Postgres<br/>catalog · users · carts ·<br/>conversations · preferences · orders)]
+    R <--> Q[(Qdrant<br/>vectors + filters)]
+    P <--> S[(Supabase / Postgres<br/>catalog · users · carts<br/>conversations · preferences · orders)]
     U <--> O[OpenAI]
 ```
 
-Every turn produces a `receipts` object — which products were retrieved, which rules fired, what was shown — so ranking is auditable, never a black box.
+**One customer message, start to finish:**
+
+1. **Load context** — cart, preferences, conversation summary, and recent messages are fetched in parallel, while relevant past moments are recalled alongside.
+2. **Understand** — the single structured model call.
+3. **Route** — anything that isn't a shopping request is answered directly.
+4. **Retrieve** — filtered vector search, with a structured fallback.
+5. **Check eligibility** — deterministic re-verification with named rules.
+6. **Rank** — weighted signals, diversification, next-step suggestions.
+7. **Respond** — a streamed reply grounded only in products that passed.
+8. **Persist** — one batched write; memory indexing and summarization happen off the critical path.
+
+---
+
+## Technology
+
+| Layer | Choice | Why |
+|---|---|---|
+| Agent orchestration | LangGraph `StateGraph` | The pipeline is an explicit, readable graph — easy to test and reason about |
+| Language model | OpenAI `gpt-4o-mini` | Structured output for understanding; streaming for replies |
+| Embeddings | `text-embedding-3-small` (256d) | Fast and inexpensive at this catalog size |
+| Vector search | Qdrant | Supports filtering inside the search, not just after it |
+| Database | Supabase / Postgres | Single source of truth for live prices, stock, and all customer state |
+| API | FastAPI (async) | Streaming responses, typed contracts, generated documentation |
+| Frontend | React 18 · TypeScript (strict) · Vite · Tailwind | — |
+| Authentication | Argon2id · JWT · Google Identity Services | — |
+
+---
+
+## Project structure
 
 ```
-Smart-Shopping-Assistant/
-├── backend/              # FastAPI + LangGraph agent → see backend/README.md for internals
-│   ├── app/              # agents · preferences · conversations · retrieval · engine · api
-│   ├── data/catalog.json # 50-product seed with per-category attributes
-│   ├── db/schema.sql     # idempotent Postgres schema (auto-applied at startup)
-│   ├── tests/            # hermetic unit + API contract tests
-│   └── evals/            # behavioral evals against the real LLM pipeline
-├── frontend/             # React 18 + TypeScript + Vite + Tailwind
-└── docker-compose.yml    # Qdrant + backend
+OneShop-AI/
+├── backend/
+│   ├── app/
+│   │   ├── agents/          # the graph, structured understanding, reply composition
+│   │   ├── engine/          # deterministic eligibility rules
+│   │   ├── recommend/       # ranking signals, diversification, next-step suggestions
+│   │   ├── retrieval/       # catalog cache, vector ingestion, hybrid retriever
+│   │   ├── preferences/     # shopper profile model, learning, persistence
+│   │   ├── conversations/   # message store, rolling summaries, semantic recall
+│   │   ├── session/         # cart, checkout, guest→account merge
+│   │   ├── auth/            # passwords, tokens, Google sign-in verification
+│   │   └── api/             # chat (JSON + streaming), catalog, cart, auth, profile
+│   ├── data/catalog.json    # 50-product seed catalog with detailed attributes
+│   ├── db/schema.sql        # database schema, applied automatically at startup
+│   ├── tests/               # fast, self-contained unit and API tests
+│   └── evals/               # behavioral checks against the real AI pipeline
+├── frontend/                # React storefront — see frontend/README.md
+└── docker-compose.yml       # Qdrant + backend
 ```
 
-## Getting started
+Backend internals are documented in [`backend/README.md`](backend/README.md).
 
-**Prerequisites:** Python 3.11+ · Node 20+ · a [Supabase](https://supabase.com) project · a [Qdrant](https://qdrant.tech) instance (cloud, or `docker compose up qdrant`) · an OpenAI API key
+---
 
-### 1 · Backend
+## Quick start
+
+**You'll need:** Python 3.11+, Node 20+, an OpenAI API key, a [Supabase](https://supabase.com) project, and a [Qdrant](https://qdrant.tech) instance (cloud, or `docker compose up qdrant`).
 
 ```bash
+# Backend
 cd backend
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # fill in the values below
-python update_catalog.py      # seed Supabase + Qdrant with the 50-product catalog
-uvicorn app.main:app --reload # → http://127.0.0.1:8000/docs
+cp .env.example .env            # fill in values — see Configuration
+python update_catalog.py        # load the catalog into Supabase + Qdrant
+uvicorn app.main:app --reload   # → http://127.0.0.1:8000/docs
+
+# Frontend (new terminal)
+cd frontend
+npm install
+npm run dev                     # → http://localhost:5173
 ```
+
+Or start Qdrant and the backend together with `docker compose up --build`.
+
+---
+
+## Configuration
+
+**Backend** (`backend/.env`)
 
 | Variable | Purpose |
 |---|---|
-| `OPENAI_API_KEY` | LLM + embeddings (`gpt-4o-mini`, `text-embedding-3-small`) |
-| `QDRANT_URL` / `QDRANT_API_KEY` | Vector search (API key for Qdrant Cloud) |
-| `SUPABASE_URL` / `SUPABASE_KEY` | Postgres via the Supabase service-role key |
-| `SUPABASE_DB_URL` | Direct Postgres connection — lets the server **create/migrate tables automatically at startup** (idempotent, non-destructive). Without it, run `backend/db/schema.sql` once in the SQL editor |
-| `AUTH_SECRET` | JWT signing key, ≥32 chars — `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
-| `REQUIRE_LOGIN_FOR_CHAT` | `true` (default): chat needs an account; guests can still browse & cart. `false`: guest-first chat with merge-on-login |
-| `STORAGE_BACKEND` | `supabase` (production) · `memory` (tests/offline dev) |
+| `OPENAI_API_KEY` | Language model and embeddings |
+| `SUPABASE_URL`, `SUPABASE_KEY` | Database access via the service-role key — server-side only |
+| `QDRANT_URL`, `QDRANT_API_KEY` | Vector search (key required for Qdrant Cloud) |
+| `AUTH_SECRET` | Token signing key, at least 32 characters |
+| `SUPABASE_DB_URL` | Optional. When set, the database schema is created and updated automatically at startup — safely, never deleting data. Otherwise run `db/schema.sql` once |
+| `GOOGLE_CLIENT_ID` | Optional. OAuth 2.0 Web application Client ID. Leave empty to hide Google Sign-In |
+| `REQUIRE_LOGIN_FOR_CHAT` | `true` asks shoppers to sign in before chatting; browsing and the cart stay open to guests |
+| `STORAGE_BACKEND` | `supabase` for production, `memory` for tests and offline development |
+| `CORS_ORIGINS` | Comma-separated list of allowed frontend origins |
 
-### 2 · Frontend
+Retrieval depth, number of recommendations, memory window, and cache lifetime are tunable in [`backend/app/config.py`](backend/app/config.py).
 
-```bash
-cd frontend
-npm install
-npm run dev                   # → http://localhost:5173
-```
+**Frontend** (`frontend/.env`)
 
-### 3 · Verify
+| Variable | Purpose |
+|---|---|
+| `VITE_API_URL` | Backend address (default `http://127.0.0.1:8000`) |
+| `VITE_GOOGLE_CLIENT_ID` | Same Client ID as the backend; safe to expose |
+
+Frontend variables are baked in at build time — changing one requires a rebuild.
+
+---
+
+## Quality and evaluation
 
 ```bash
 cd backend
-python -m pytest tests        # 36 hermetic tests — no network needed
-python -m evals.run_evals     # behavioral evals against real OpenAI + Qdrant
+python -m pytest tests        # fast and self-contained — no network, model mocked
+python -m evals.run_evals     # behavioral checks against the real model and vector store
 cd ../frontend && npm run typecheck
 ```
 
-### Docker
+The unit tests cover the eligibility rules, preference learning, and every API contract. The evaluation suite runs the real AI pipeline end to end and checks **behavior, not wording**: budgets are respected, currencies are handled, brand exclusions survive into new conversations, spec and color filters hold, combined constraints work together, shopping behavior changes ranking, and off-topic requests are declined without showing products.
 
-```bash
-docker compose up --build     # Qdrant + backend on :8000 (Supabase stays cloud)
-```
+---
 
-## API overview
+## Deployment
 
-| Endpoint | Description |
-|---|---|
-| `POST /chat` | One chat turn → `{reply_text, recommendations, products, nba, cart, receipts, conversation_id}` |
-| `POST /chat/stream` | Same turn over SSE: `token` deltas → `recommendations` (full products) → `nba` → `done` |
-| `GET /chat/history` · `GET /chat/conversations` · `DELETE /chat/conversations/{id}` | Thread management |
-| `GET /catalog` · `GET /catalog/{id}` | Catalog, ranked live against the session's preferences |
-| `GET /cart/summary` · `POST /cart/add·remove·set` · `GET /cart/suggestions` · `POST /cart/checkout` | Cart & orders |
-| `POST /auth/register` · `POST /auth/login` · `GET /auth/me` | Accounts (guest state merges on login) |
-| `GET /session/profile` · `PATCH /session/profile` | Inspect & edit what the assistant has learned |
-| `GET /health` · `GET /ready` | Liveness / dependency readiness probes |
+The frontend and backend deploy separately. The frontend is a static build that runs on any static host. The backend ships with a `Dockerfile` for any container platform, and benefits from a long-running process so connections and the catalog cache stay warm. After deploying, set `CORS_ORIGINS` to the frontend's real address.
 
-Interactive docs at `/docs` (Swagger). Full backend internals in [`backend/README.md`](backend/README.md).
+---
 
-## Security
+## Security and operations
 
-- **Auth:** JWT access tokens (HS256) · Argon2id password hashing (legacy hashes transparently re-hashed on login)
-- **Ownership everywhere:** every session-scoped endpoint verifies the caller — guest sessions are unguessable capabilities, account sessions require a matching bearer token
-- **Login-gated chat** by default (configurable) · rate limiting on auth and LLM-spending endpoints · CORS origin allowlist · RLS enabled on all tables (service-role key stays server-side)
+- **Sign-in:** passwords hashed with Argon2id; signed session tokens; Google sign-ins verified against Google's published keys, including audience, issuer, expiry, and email-verification checks. Google-only accounts have no password to attack.
+- **Access control:** every request that touches a shopper's data verifies who is asking. Guest sessions are unguessable; account sessions require a valid token.
+- **Abuse protection:** rate limits on sign-in and on every endpoint that spends model credits. Database tables are locked down so only the server can reach them.
+- **Zero-touch schema:** tables and vector collections are created and updated automatically at startup, never destructively.
+- **Observability:** structured logs with request IDs; a readiness endpoint reports the health of each dependency.
+- **Data lifecycle:** one command re-syncs the catalog in place; another clears customer data while preserving accounts and the catalog.
 
-## Operations
-
-- **Zero-touch schema:** tables, columns, and vector collections are created/updated idempotently at startup — never destructively
-- **Observability:** structured JSON logs with request IDs; `/ready` checks Supabase + Qdrant
-- **Data lifecycle:** `python update_catalog.py` re-syncs the catalog in place; `python clear_user_data.py` wipes all user data (carts, conversations, preferences, memory vectors) without touching the catalog
+---
 
 ## License
 

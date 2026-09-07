@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
+from app.auth.google import GoogleAuthError, verify_google_credential
 from app.auth.security import hash_password, issue_token, needs_rehash, verify_password, verify_token
 from app.auth.users_store import user_store
 from app.rate_limit import limiter
@@ -24,6 +25,12 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    session_id: str | None = None
+
+
+class GoogleRequest(BaseModel):
+    """`credential` is the ID token returned by Google Identity Services."""
+    credential: str
     session_id: str | None = None
 
 
@@ -62,6 +69,44 @@ async def login(req: LoginRequest, request: Request) -> AuthResponse:
 
     if needs_rehash(user["password_hash"]):
         await user_store().update_password_hash(user["user_id"], hash_password(req.password))
+
+    if req.session_id:
+        await session_store().merge_guest_into_user(req.session_id, user["user_id"])
+
+    return AuthResponse(
+        user_id=user["user_id"], email=user["email"], name=user["name"],
+        token=issue_token(user["user_id"]),
+    )
+
+
+@router.post("/google", response_model=AuthResponse)
+@limiter.limit("10/minute")
+async def google_login(req: GoogleRequest, request: Request) -> AuthResponse:
+    """Sign in (or sign up) with a verified Google account.
+
+    Resolution order is Google id first, then email. Matching on the Google
+    `sub` keeps the link stable if the person later changes their Gmail
+    address; falling back to email lets an existing password account adopt
+    Google sign-in without creating a duplicate.
+    """
+    try:
+        profile = await verify_google_credential(req.credential)
+    except GoogleAuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    store = user_store()
+    user = await store.get_by_google_sub(profile["sub"])
+    if user is None:
+        user = await store.get_by_email(profile["email"])
+        if user is not None:
+            # Google has already verified they own this address, so attaching
+            # it to the existing account is safe and avoids a duplicate.
+            await store.link_google_sub(user["user_id"], profile["sub"])
+        else:
+            # No password hash: this account can only ever sign in via Google.
+            user = await store.create(
+                profile["email"], "", profile["name"], google_sub=profile["sub"],
+            )
 
     if req.session_id:
         await session_store().merge_guest_into_user(req.session_id, user["user_id"])

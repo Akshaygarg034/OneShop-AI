@@ -17,6 +17,11 @@ create table if not exists public.users (
     created_at     timestamptz not null default now()
 );
 alter table public.users add column if not exists phone text not null default '';
+-- Google account id ("sub"). Null for password-only accounts; unique when set so
+-- one Google identity can never map to two local accounts.
+alter table public.users add column if not exists google_sub text;
+create unique index if not exists idx_users_google_sub on public.users (google_sub)
+    where google_sub is not null;
 
 create table if not exists public.catalog_products (
     id               text primary key,

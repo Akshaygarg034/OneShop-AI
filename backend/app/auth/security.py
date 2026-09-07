@@ -26,6 +26,10 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
+    # Google-only accounts are stored with an empty hash; they have no password
+    # login path and must never be reachable through this function.
+    if not stored:
+        return False
     if stored.startswith(_LEGACY_PREFIX):
         return _verify_legacy(password, stored)
     try:

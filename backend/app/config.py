@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     # Auth
     auth_secret: str = ""
+    # Google Sign-In. Empty disables the Google button; email/password is unaffected.
+    google_client_id: str = ""
     auth_token_ttl_seconds: int = 60 * 60 * 24 * 7
     # When true, the chat endpoints require a logged-in account (guest sessions
     # can still browse and manage a cart). When false, guests can chat and their

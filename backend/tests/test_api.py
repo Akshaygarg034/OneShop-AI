@@ -324,3 +324,68 @@ def test_chat_stream_events(client, fake_understanding):
     assert "event: token" in payload
     assert "event: recommendations" in payload
     assert "event: done" in payload
+
+
+# --- Google Sign-In -------------------------------------------------------
+# The ID-token verification itself is Google's JWT library; what's worth
+# testing is our account resolution: create, link, and the no-password rule.
+
+def _fake_google(monkeypatch, sub: str, email: str, name: str = ""):
+    async def fake_verify(credential: str) -> dict:
+        return {"sub": sub, "email": email, "name": name}
+
+    monkeypatch.setattr("app.api.auth.verify_google_credential", fake_verify)
+
+
+def test_google_signin_creates_account_and_merges_guest(client, monkeypatch):
+    _fake_google(monkeypatch, "google-sub-1", "gshopper@example.com", "G Shopper")
+    guest = "guest-google-test"
+    catalog = client.get("/catalog").json()
+    accessory = next(p for p in catalog if p["type"] == "accessory" and p["in_stock"])
+    client.post("/cart/add", json={"session_id": guest, "product_id": accessory["id"], "qty": 1})
+
+    res = client.post("/auth/google", json={"credential": "fake-id-token", "session_id": guest})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["email"] == "gshopper@example.com" and body["name"] == "G Shopper"
+
+    # The guest cart followed the new account.
+    cart = client.get("/cart/summary", params={"session_id": body["user_id"]},
+                      headers={"Authorization": f"Bearer {body['token']}"}).json()
+    assert cart["items"][0]["product_id"] == accessory["id"]
+
+    # Signing in again returns the same account rather than a duplicate.
+    again = client.post("/auth/google", json={"credential": "fake-id-token"})
+    assert again.json()["user_id"] == body["user_id"]
+
+
+def test_google_signin_links_to_existing_password_account(client, monkeypatch):
+    registered = client.post("/auth/register", json={
+        "email": "both@example.com", "password": "s3curepass!", "name": "Both",
+    }).json()
+
+    _fake_google(monkeypatch, "google-sub-2", "both@example.com", "Both")
+    linked = client.post("/auth/google", json={"credential": "fake-id-token"})
+    assert linked.status_code == 200
+    # Same account, not a second one — and the password still works.
+    assert linked.json()["user_id"] == registered["user_id"]
+    assert client.post("/auth/login", json={
+        "email": "both@example.com", "password": "s3curepass!",
+    }).status_code == 200
+
+
+def test_google_only_account_has_no_password_login(client, monkeypatch):
+    _fake_google(monkeypatch, "google-sub-3", "googleonly@example.com")
+    assert client.post("/auth/google", json={"credential": "fake-id-token"}).status_code == 200
+
+    # An empty stored hash must never verify, whatever is submitted.
+    for attempt in ("", " ", "anything"):
+        res = client.post("/auth/login", json={"email": "googleonly@example.com", "password": attempt})
+        assert res.status_code == 401, f"empty-hash account accepted password {attempt!r}"
+
+
+def test_google_signin_rejected_when_unconfigured(client):
+    """No GOOGLE_CLIENT_ID (the test default) means no credential can be trusted."""
+    res = client.post("/auth/google", json={"credential": "any-token"})
+    assert res.status_code == 401
+    assert "not configured" in res.json()["detail"]
