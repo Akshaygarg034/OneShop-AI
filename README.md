@@ -17,6 +17,18 @@ It talks naturally, remembers each shopper, learns their preferences over time �
 
 [Why it matters](#why-it-matters) · [What it does](#what-it-does) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Configuration](#configuration) · [Quality](#quality-and-evaluation)
 
+<br/>
+
+<a href="https://res.cloudinary.com/dz1vsgxm5/image/upload/v1788762268/All%20projects%20Screenshots/Screenshot_2026-09-07_at_11.54.08_AM_ls4j9t.png">
+  <img src="https://res.cloudinary.com/dz1vsgxm5/image/upload/v1788762268/All%20projects%20Screenshots/Screenshot_2026-09-07_at_11.54.08_AM_ls4j9t.png"
+       alt="OneShop AI storefront with the shopping assistant answering a natural-language product request"
+       width="900" />
+</a>
+
+<sub><b>The assistant answering an open-ended request.</b> It reads the shopper's stated interest, then returns real
+catalog products with live prices, discounts, ratings, and available colors — rendered as cards inside the reply
+stream. Click to view full size.</sub>
+
 </div>
 
 ---
