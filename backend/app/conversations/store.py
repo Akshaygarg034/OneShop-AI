@@ -71,8 +71,20 @@ class MemoryConversationStore:
         self._messages[conversation_id].append(msg)
         return msg
 
+    async def append_many(
+        self, session_id: str, conversation_id: str,
+        entries: list[tuple[str, str, list[dict] | None]],
+    ) -> list[Message]:
+        return [
+            await self.append(session_id, conversation_id, role, content, recs)
+            for role, content, recs in entries
+        ]
+
     async def recent(self, conversation_id: str, limit: int) -> list[Message]:
         return self._messages.get(conversation_id, [])[-limit:]
+
+    async def has_any_conversation(self, session_id: str) -> bool:
+        return any(m.session_id == session_id for m in self._meta.values())
 
     async def full_history(self, conversation_id: str) -> list[Message]:
         return list(self._messages.get(conversation_id, []))
@@ -158,6 +170,57 @@ class SupabaseConversationStore:
         ).eq("id", conversation_id).execute()
         return msg
 
+    async def append_many(
+        self, session_id: str, conversation_id: str,
+        entries: list[tuple[str, str, list[dict] | None]],
+    ) -> list[Message]:
+        """Persist a whole turn in 3 round trips instead of 3 per message.
+
+        `messages` carries a foreign key to `conversations`, so a brand-new
+        thread writes its parent row first. An existing thread inserts the
+        messages first instead, so a failed write can never leave
+        `message_count` ahead of the rows that actually landed.
+        """
+        from app.clients import supabase_client
+
+        if not entries:
+            return []
+        client = supabase_client()
+        meta = await self.get_meta(conversation_id)
+        base_seq = meta.message_count if meta else 0
+        now = _now_iso()
+
+        msgs = [
+            Message(
+                conversation_id=conversation_id, session_id=session_id,
+                seq=base_seq + i + 1, role=role, content=content,
+                recommendations=recs or [], created_at=now,
+            )
+            for i, (role, content, recs) in enumerate(entries)
+        ]
+        rows = [{
+            "conversation_id": m.conversation_id, "session_id": m.session_id, "seq": m.seq,
+            "role": m.role, "content": m.content, "recommendations": m.recommendations,
+            "created_at": m.created_at,
+        } for m in msgs]
+        final_seq = msgs[-1].seq
+        title = next((m.content[:80] for m in msgs if m.role == "user"), "")
+
+        if meta is None:
+            await client.table(_CONVERSATIONS).upsert(
+                {"id": conversation_id, "session_id": session_id, "title": title,
+                 "message_count": final_seq, "updated_at": now},
+                on_conflict="id",
+            ).execute()
+            await client.table(_MESSAGES).insert(rows).execute()
+        else:
+            await client.table(_MESSAGES).insert(rows).execute()
+            update = {"message_count": final_seq, "updated_at": now}
+            if not meta.title and title:
+                update["title"] = title
+            await client.table(_CONVERSATIONS).update(update).eq("id", conversation_id).execute()
+        return msgs
+
     async def recent(self, conversation_id: str, limit: int) -> list[Message]:
         from app.clients import supabase_client
 
@@ -187,6 +250,17 @@ class SupabaseConversationStore:
             .order("updated_at", desc=False).execute()
         )
         return [row["id"] for row in resp.data or []]
+
+    async def has_any_conversation(self, session_id: str) -> bool:
+        """Existence probe for "does this session have history elsewhere".
+        `limit(1)` because the caller only needs the boolean, not the ids."""
+        from app.clients import supabase_client
+
+        resp = await (
+            supabase_client().table(_CONVERSATIONS)
+            .select("id").eq("session_id", session_id).limit(1).execute()
+        )
+        return bool(resp.data)
 
     async def list_meta(self, session_id: str) -> list[ConversationMeta]:
         from app.clients import supabase_client

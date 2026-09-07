@@ -75,34 +75,44 @@ async def _load_context(state: AgentState) -> AgentState:
     conversation_id = state["conversation_id"]
     store = conversation_store()
 
-    cart, prefs, meta = await asyncio.gather(
-        session_store().get_cart(session_id),
-        preference_store().get(session_id),
-        store.get_meta(conversation_id),
-    )
+    # Semantic recall depends only on the session and this message — both known
+    # on entry — so it runs alongside the context reads instead of after them.
+    # It is dropped unless the history turns out long enough to be worth it.
+    recall_task = asyncio.create_task(recall(session_id, state["message"]))
+    try:
+        cart, prefs, meta, recent = await asyncio.gather(
+            session_store().get_cart(session_id),
+            preference_store().get(session_id),
+            store.get_meta(conversation_id),
+            store.recent(conversation_id, settings.history_window),
+        )
 
-    recent: list[Message] = []
-    summary = ""
-    if meta is not None:
-        recent = await store.recent(conversation_id, settings.history_window)
-        summary = meta.summary
+        summary = ""
+        if meta is not None:
+            summary = meta.summary
+        else:
+            # No conversation row means no messages either; keep the empty-history
+            # contract explicit rather than trusting the speculative read.
+            recent = []
 
-    # Products shown earlier in this thread (most recent last) — the deterministic
-    # basis for "show me something other than these" requests.
-    recently_shown: list[str] = []
-    for m in recent:
-        if m.role == "assistant":
-            for rec in m.recommendations:
-                pid = rec.get("product_id")
-                if pid and pid not in recently_shown:
-                    recently_shown.append(pid)
+        # Products shown earlier in this thread (most recent last) — the deterministic
+        # basis for "show me something other than these" requests.
+        recently_shown: list[str] = []
+        for m in recent:
+            if m.role == "assistant":
+                for rec in m.recommendations:
+                    pid = rec.get("product_id")
+                    if pid and pid not in recently_shown:
+                        recently_shown.append(pid)
 
-    # Semantic recall only pays off when there's history beyond the verbatim window.
-    recalled: list[str] = []
-    has_older_turns = meta is not None and meta.message_count > settings.history_window
-    has_other_threads = meta is None and bool(await store.list_ids(session_id))
-    if has_older_turns or has_other_threads:
-        recalled = await recall(session_id, state["message"])
+        # Semantic recall only pays off when there's history beyond the verbatim window.
+        recalled: list[str] = []
+        has_older_turns = meta is not None and meta.message_count > settings.history_window
+        has_other_threads = meta is None and await store.has_any_conversation(session_id)
+        if has_older_turns or has_other_threads:
+            recalled = await recall_task
+    finally:
+        recall_task.cancel()
 
     return {
         "cart": cart, "prefs": prefs, "summary": summary,
@@ -259,11 +269,16 @@ async def _persist(state: AgentState) -> AgentState:
     assistant_content = reply + (("\n\n" + "\n".join(nba)) if nba else "")
     rec_dumps = [r.model_dump() for r in state.get("recommendations", [])]
 
-    user_msg = await store.append(session_id, conversation_id, "user", state["message"])
-    assistant_msg = await store.append(
-        session_id, conversation_id, "assistant", assistant_content, rec_dumps,
+    # The whole turn goes in one batched write, with the preference save running
+    # alongside it — this runs after the reply is already composed, so every
+    # round trip saved here is dead time removed from the end of the request.
+    (user_msg, assistant_msg), _ = await asyncio.gather(
+        store.append_many(session_id, conversation_id, [
+            ("user", state["message"], None),
+            ("assistant", assistant_content, rec_dumps),
+        ]),
+        preference_store().save(session_id, state["prefs"]),
     )
-    await preference_store().save(session_id, state["prefs"])
 
     # Non-critical long-term-memory work happens off the request path.
     # It needs the full stack (Qdrant + OpenAI), which memory-backend runs don't have.
