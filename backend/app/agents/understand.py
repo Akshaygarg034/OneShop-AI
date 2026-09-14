@@ -51,7 +51,11 @@ FILTERS (hard constraints for THIS turn only — the deterministic engine enforc
 - CURRENCY: users may write Rs, ₹, INR, $, dollars, EUR, €, or a bare number. ALWAYS read the numeric
   amount as EUR (the shop's currency) and set stated_currency to the currency they used ("inr", "usd",
   "eur", or "" if none stated). "under Rs 600" means price_max=600.
-- brands_include: brands explicitly requested. brands_exclude: brands to avoid THIS turn.
+- brands_include: MANUFACTURER brands explicitly requested (apple, samsung, google, sony...).
+  brands_exclude: brands to avoid THIS turn.
+  Product LINES are not brands — never put "iphone", "galaxy", "pixel", "airpods", "macbook",
+  "ipad", "xperia" in brands_include. Map the line to its maker (iphone -> apple, galaxy -> samsung,
+  pixel -> google) and put the line name in semantic_query so the right model surfaces.
 - attributes: numeric -> op "gte"/"lte"/"eq" with `number` ("at least 8GB RAM" -> ram_gb gte 8;
   "128GB storage" -> storage_gb eq 128); textual -> op "eq"/"in" with `values` (os in ["android"]).
 - min_rating for "well-rated/highly rated" (use 4.3). on_sale_only for deals/discount asks.
@@ -174,6 +178,40 @@ def _repair_deltas(result: Understanding) -> None:
     ]
 
 
+# Product lines shoppers use as if they were brands. The catalog stores the maker,
+# so a hard filter on the line name would match nothing and the turn would come
+# back empty even though the products exist. Kept in code, not just the prompt,
+# so a model slip can never produce a false "nothing found".
+_LINE_TO_BRAND: dict[str, str] = {
+    "iphone": "apple", "iphones": "apple", "ipad": "apple", "ipads": "apple",
+    "macbook": "apple", "macbooks": "apple", "airpods": "apple", "apple watch": "apple",
+    "galaxy": "samsung", "pixel": "google", "pixels": "google", "xperia": "sony",
+    "redmi": "xiaomi", "poco": "xiaomi", "nord": "oneplus",
+}
+
+
+def _normalize_brands(result: Understanding) -> None:
+    """Rewrite product-line names to their maker in every brand-shaped field, and
+    make sure the line itself still steers semantic retrieval."""
+    def canon(name: str) -> tuple[str, bool]:
+        key = name.strip().lower()
+        return (_LINE_TO_BRAND[key], True) if key in _LINE_TO_BRAND else (name, False)
+
+    for field in ("brands_include", "brands_exclude"):
+        seen: list[str] = []
+        for raw in getattr(result.filters, field):
+            brand, was_line = canon(raw)
+            if brand not in seen:
+                seen.append(brand)
+            if was_line and field == "brands_include" and raw.lower() not in result.semantic_query.lower():
+                result.semantic_query = f"{raw.lower()} {result.semantic_query}".strip()
+        setattr(result.filters, field, seen)
+
+    for delta in result.preference_deltas:
+        if delta.target == "brand" and delta.key:
+            delta.key, _ = canon(delta.key)
+
+
 async def understand(
     message: str,
     summary: str,
@@ -189,6 +227,7 @@ async def understand(
         return _fallback_understanding(message)
 
     _repair_deltas(result)
+    _normalize_brands(result)
 
     # Belt-and-braces: a stated budget must persist even if the LLM only set filters.
     if (

@@ -389,3 +389,38 @@ def test_google_signin_rejected_when_unconfigured(client):
     res = client.post("/auth/google", json={"credential": "any-token"})
     assert res.status_code == 401
     assert "not configured" in res.json()["detail"]
+
+
+# --- product-line -> brand normalization ------------------------------------
+# "iPhone" is a product line; the catalog brand is "Apple". A hard brand filter on
+# the line name matches nothing, so the assistant would say "no results" for a
+# query with three valid answers. This guards the deterministic repair step.
+
+def test_normalize_brands_maps_product_lines_to_makers():
+    from app.agents.understand import _normalize_brands
+
+    u = Understanding(
+        intent="shopping", semantic_query="highest rating",
+        filters=QueryFilters(brands_include=["iphone"], brands_exclude=["Galaxy"], price_max=1000),
+        preference_deltas=[PreferenceDelta(target="brand", action="exclude", key="pixel")],
+    )
+    _normalize_brands(u)
+    assert u.filters.brands_include == ["apple"]
+    assert u.filters.brands_exclude == ["samsung"]
+    # the line name still steers retrieval toward the right model
+    assert "iphone" in u.semantic_query
+    # a durable exclusion on a line becomes an exclusion on the real brand
+    assert u.preference_deltas[0].key == "google"
+
+
+def test_normalize_brands_leaves_real_brands_and_unknowns_alone():
+    from app.agents.understand import _normalize_brands
+
+    u = Understanding(
+        intent="shopping", semantic_query="phone",
+        filters=QueryFilters(brands_include=["Samsung", "huawei"]),
+    )
+    _normalize_brands(u)
+    # real brands pass through untouched; an unknown brand stays so "no results" remains honest
+    assert u.filters.brands_include == ["Samsung", "huawei"]
+    assert u.semantic_query == "phone"

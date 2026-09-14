@@ -577,7 +577,13 @@ export function FloatingChat() {
   const send = (text: string) => {
     if (!text.trim() || typing) return;
     const now = () => new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-    setMessages((prev) => [...prev, { id: Date.now(), role: "user", text, timestamp: now() }]);
+    // Fix both ids up front. `Date.now()` inside the state updater ran later than
+    // `assistantId = Date.now() + 1` below — often exactly 1ms later — giving the
+    // user bubble and the assistant bubble the same id, so the reply overwrote
+    // the shopper's own message.
+    const userId = Date.now();
+    const assistantId = userId + 1;
+    setMessages((prev) => [...prev, { id: userId, role: "user", text, timestamp: now() }]);
     setInput("");
     setTyping(true);
 
@@ -588,7 +594,6 @@ export function FloatingChat() {
       convIdRef.current = newId;
     }
 
-    const assistantId = Date.now() + 1;
     let streamStarted = false;
     const appendToken = (delta: string) => {
       if (!streamStarted) {
