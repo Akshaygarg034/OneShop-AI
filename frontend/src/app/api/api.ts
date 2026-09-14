@@ -57,9 +57,6 @@ function titleCase(s: string): string {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function placeholderImage(name: string): string {
-  return `https://placehold.co/400x400/1a1a2e/ffffff?text=${encodeURIComponent(name)}`;
-}
 
 function adaptProduct(p: BackendProduct, recommended = false): Product {
   const price = p.price_onetime > 0 ? p.price_onetime : p.price_monthly;
@@ -92,7 +89,7 @@ function adaptProduct(p: BackendProduct, recommended = false): Product {
     monthlyPrice,
     originalPrice: p.original_price > price ? p.original_price : 0,
     discountPct: p.discount_pct,
-    image: p.image_url || placeholderImage(p.name),
+    image: p.image_url,  // already an optimized WebP on our CDN — see backend update_catalog.py
     badge,
     badgeColor: !p.in_stock ? "#FF3B30" : recommended ? "var(--primary)" : p.discount_pct > 0 ? "#E4572E" : "#00C2A8",
     stars: p.rating,
@@ -117,10 +114,25 @@ function adaptRecommended(products: BackendProduct[], recs: BackendRecommendatio
 }
 
 // --- catalog ---
-async function fetchRawCatalog(): Promise<BackendProduct[]> {
-  const res = await fetch(`${BASE}/catalog?session_id=${getSessionId()}`);
-  if (!res.ok) throw new Error("Could not load the catalog. Please try again.");
-  return res.json();
+// The catalog is personalised per session, so the cache is keyed by session id and
+// kept short: long enough to collapse the simultaneous requests made on page load,
+// short enough that a cart change is reflected on the next natural refetch.
+const CATALOG_TTL_MS = 15_000;
+let catalogCache: { session: string; at: number; promise: Promise<BackendProduct[]> } | null = null;
+
+function fetchRawCatalog(): Promise<BackendProduct[]> {
+  const session = getSessionId();
+  if (catalogCache && catalogCache.session === session && Date.now() - catalogCache.at < CATALOG_TTL_MS) {
+    return catalogCache.promise;
+  }
+  const promise = fetch(`${BASE}/catalog?session_id=${session}`).then((res) => {
+    if (!res.ok) throw new Error("Could not load the catalog. Please try again.");
+    return res.json() as Promise<BackendProduct[]>;
+  });
+  catalogCache = { session, at: Date.now(), promise };
+  // A failed load must not be served from cache — let the retry button really retry.
+  promise.catch(() => { if (catalogCache?.promise === promise) catalogCache = null; });
+  return promise;
 }
 
 export function getProducts(): Promise<Product[]> {

@@ -13,6 +13,7 @@ import {
 import { PreferencesPanel } from "./PreferencesPanel";
 import { AuthModal } from "./AuthModal";
 import { ColorDots } from "./ColorDots";
+import { ProductImage } from "./ProductImage";
 import { formatEUR } from "../lib/format";
 import { useSpeechRecognition } from "../lib/useSpeechRecognition";
 import type { ChatMessage, Product } from "../types";
@@ -183,11 +184,7 @@ function ProductCard({
           background: "var(--muted)",
         }}
       >
-        <img
-          src={product.image}
-          alt={product.name}
-          style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block" }}
-        />
+        <ProductImage src={product.image} alt={product.name} fit="contain" />
       </div>
 
       <div style={{ padding: "10px 11px 12px" }}>

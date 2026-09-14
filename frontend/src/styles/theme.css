@@ -3,33 +3,34 @@
 :root,
 [data-theme="dark"] {
   --font-size: 16px;
-  /* Dark surfaces carry a faint magenta tint (hue ~275-290, very low saturation)
-     so they sit under the #E20074 brand colour instead of fighting it. */
-  --background: #17141A;
-  --surface: #1D1922;
-  --foreground: #F2EEF5;
-  --card: #201C26;
-  --card-foreground: #F2EEF5;
-  --popover: #262130;
-  --popover-foreground: #F2EEF5;
+  /* Neutral charcoal ramp (no colour tint), modelled on trailhq.com/graft:
+     #121212 page -> #181818 -> #1D1D1D raised -> #242424 -> #2A2A2A.
+     Text is warm off-white so the only saturated colour on screen is the brand magenta. */
+  --background: #121212;
+  --surface: #181818;
+  --foreground: #F2F1F0;
+  --card: #1D1D1D;
+  --card-foreground: #F2F1F0;
+  --popover: #242424;
+  --popover-foreground: #F2F1F0;
   --primary: #E20074;
   --primary-hover: #FF1A8C;
   --primary-rgb: 226, 0, 116;
   --primary-foreground: #FFFFFF;
-  --secondary: #2A2532;
-  --secondary-foreground: #F2EEF5;
-  --muted: #2A2532;
-  --muted-foreground: #A39CAC;
-  --muted-foreground-2: #C4BDCC;
+  --secondary: #242424;
+  --secondary-foreground: #F2F1F0;
+  --muted: #242424;
+  --muted-foreground: #A3A1A0;
+  --muted-foreground-2: #C9C7C5;
   --accent: #FF2D96;
   --accent-foreground: #FFFFFF;
   --destructive: #FF5A50;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(255, 255, 255, 0.10);
+  --border: #282828;
   --border-rgb: 255, 255, 255;
   --input: transparent;
-  --input-background: #262130;
-  --switch-background: #423B4D;
+  --input-background: #1D1D1D;
+  --switch-background: #3A3A3A;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #FF2D96;
@@ -39,13 +40,13 @@
   --chart-4: #9B85FF;
   --chart-5: #FFD966;
   --radius: 0.5rem;
-  --sidebar: #1A1620;
-  --sidebar-foreground: #F2EEF5;
+  --sidebar: #121212;
+  --sidebar-foreground: #F2F1F0;
   --sidebar-primary: #E20074;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #2A2532;
-  --sidebar-accent-foreground: #F2EEF5;
-  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-accent: #242424;
+  --sidebar-accent-foreground: #F2F1F0;
+  --sidebar-border: #282828;
   --sidebar-ring: #FF2D96;
 }
 

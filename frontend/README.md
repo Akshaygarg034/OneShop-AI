@@ -60,6 +60,17 @@ src/
 └── styles/theme.css            # light + dark design tokens
 ```
 
+## Product images
+
+Product photos arrive from the API already optimized: the backend's catalog sync
+(`python update_catalog.py`) downloads each photo, compresses it to a 640px WebP,
+and publishes it to Supabase Storage, so `image_url` points at a single CDN origin
+rather than ~30 third-party hosts. Nothing to run on the frontend side.
+
+On this side, `components/ProductImage.tsx` is the one component every photo
+renders through: lazy by default (first six catalog cards eager), async decode,
+and an inline placeholder instead of a broken-image icon if a load fails.
+
 ## Notes
 
 **Design tokens.** Colors, radii, and spacing are CSS custom properties in

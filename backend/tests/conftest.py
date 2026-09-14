@@ -3,6 +3,7 @@ import os
 os.environ["ENVIRONMENT"] = "test"
 os.environ["STORAGE_BACKEND"] = "memory"
 os.environ["REQUIRE_LOGIN_FOR_CHAT"] = "false"  # guest-mode default for tests; the gate has its own test
+os.environ["GOOGLE_CLIENT_ID"] = ""  # tests must not pick up a real client id from .env
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("AUTH_SECRET", "test-secret-not-for-production")
 

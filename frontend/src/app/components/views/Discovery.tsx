@@ -4,6 +4,7 @@ import { useCart } from "../../cart/CartContext";
 import { getProducts } from "../../api/api";
 import { formatEUR } from "../../lib/format";
 import { ColorDots } from "../ColorDots";
+import { ProductImage } from "../ProductImage";
 import type { Product } from "../../types";
 
 const categories = ["All", "Smartphones", "Tablets", "Laptops", "Wearables", "Audio", "Accessories", "Plans", "Bundles"];
@@ -127,7 +128,7 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((product) => {
+          {filtered.map((product, index) => {
             const inCart = isInCart(product.id);
             return (
               <div
@@ -150,17 +151,11 @@ export function Discovery({ category, onCategoryChange, searchQuery }: Discovery
               >
                 {/* Image area */}
                 <div style={{ position: "relative", height: 180, background: "var(--muted)", overflow: "hidden" }}>
-                  <img
+                  <ProductImage
                     src={product.image}
                     alt={product.name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                      display: "block",
-                      opacity: product.inStock ? 1 : 0.5,
-                    }}
+                    eager={index < 6}
+                    style={{ opacity: product.inStock ? 1 : 0.5 }}
                   />
                   <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
                     <span

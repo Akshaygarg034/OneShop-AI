@@ -8,6 +8,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { getBundleSuggestions, getLiveActivity, createOrder } from "../../api/api";
 import type { OrderResult } from "../../api/api";
 import { formatEUR } from "../../lib/format";
+import { ProductImage } from "../ProductImage";
 import { AuthModal } from "../AuthModal";
 import type { Product, ShippingDetails, PaymentDetails } from "../../types";
 
@@ -268,7 +269,7 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                 <div className="divide-y" style={{ borderColor: "rgba(var(--border-rgb),0.07)" }}>
                   {items.map(({ product, qty, billing }) => (
                     <div key={product.id} style={{ padding: "16px 20px", display: "flex", gap: 14 }}>
-                      <img src={product.image} alt={product.name} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+                      <div style={{ width: 72, height: 72, borderRadius: 8, overflow: "hidden", flexShrink: 0, background: "var(--muted)" }}><ProductImage src={product.image} alt={product.name} eager /></div>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{product.name}</p>
                         <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 8 }}>{product.category}</p>
@@ -325,7 +326,7 @@ export function SmartCart({ onContinueShopping }: SmartCartProps) {
                       const added = isInCart(product.id);
                       return (
                         <div key={product.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "var(--muted)", borderRadius: 16, border: "1px solid rgba(var(--border-rgb),0.05)" }}>
-                          <img src={product.image} alt={product.name} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+                          <div style={{ width: 52, height: 52, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "var(--muted)" }}><ProductImage src={product.image} alt={product.name} /></div>
                           <div style={{ flex: 1 }}>
                             <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{product.name}</p>
                             <p style={{ fontSize: 10, color: "var(--muted-foreground)" }}>

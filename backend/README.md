@@ -61,6 +61,10 @@ per-category `attributes` object (e.g. smartphones: `ram_gb`, `storage_gb`, `dis
 
 `python update_catalog.py` validates and upserts to Supabase, then re-embeds into Qdrant with
 deterministic point IDs (re-runs update in place; removed products are pruned).
+It also publishes every product photo as a 640px WebP to the public `product-images`
+Storage bucket and stores that CDN URL in `image_url`, so the storefront never hot-links
+third-party hosts (`--skip-images` keeps existing URLs for text-only edits). See
+`app/retrieval/images.py`.
 Prices/stock are never embedded — they live in Postgres and are re-checked on every turn;
 the Qdrant payload carries filterable copies (brand, category, price, stock) refreshed on
 each sync so constraints can be pushed into the vector search.

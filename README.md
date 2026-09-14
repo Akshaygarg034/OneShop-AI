@@ -103,6 +103,7 @@ An **agentic workflow** built on LangGraph: a graph of specialized agents, each 
 - **Guest-first, merge on sign-in** — cart, preferences, and history follow the shopper to any device.
 - Email/password and **Google Sign-In**, with Google identities linked to existing accounts by verified email.
 - Saved conversations, voice search, light and dark themes, and fault isolation between panels.
+- **Fast media pipeline** — the catalog sync compresses every product photo to WebP and publishes it to one CDN origin (a 12 MB seed catalog ships as under 1 MB); the storefront lazy-loads images and falls back gracefully if one fails.
 
 ---
 
@@ -195,7 +196,7 @@ cd backend
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # fill in values — see Configuration
-python update_catalog.py        # load the catalog into Supabase + Qdrant
+python update_catalog.py        # catalog → Supabase + Qdrant, photos → compressed WebP on Storage
 uvicorn app.main:app --reload   # → http://127.0.0.1:8000/docs
 
 # Frontend (new terminal)
@@ -263,7 +264,7 @@ The frontend and backend deploy separately. The frontend is a static build that 
 - **Abuse protection:** rate limits on sign-in and on every endpoint that spends model credits. Database tables are locked down so only the server can reach them.
 - **Zero-touch schema:** tables and vector collections are created and updated automatically at startup, never destructively.
 - **Observability:** structured logs with request IDs; a readiness endpoint reports the health of each dependency.
-- **Data lifecycle:** one command re-syncs the catalog in place; another clears customer data while preserving accounts and the catalog.
+- **Data lifecycle:** one command re-syncs the catalog in place — text, vectors, and optimized product photos together; another clears customer data while preserving accounts and the catalog.
 
 ---
 
