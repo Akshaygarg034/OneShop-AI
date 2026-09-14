@@ -7,7 +7,7 @@ import {
 import { useCart } from "../cart/CartContext";
 import { useAuth } from "../auth/AuthContext";
 import {
-  askAssistant, askAssistantStream, deleteConversation,
+  askAssistant, askAssistantStream, ChatStreamUnavailableError, deleteConversation,
   fetchChatHistory, fetchConversations, resolveHistoryProducts,
 } from "../api/api";
 import { PreferencesPanel } from "./PreferencesPanel";
@@ -635,16 +635,18 @@ export function FloatingChat() {
     (async () => {
       try {
         applyResult(await askAssistantStream(text, convIdRef.current, appendToken));
-      } catch {
-        if (streamStarted) {
-          showError();
-        } else {
-          // Streaming never started (proxy/SSE issue) — safe to retry non-streaming.
+      } catch (err) {
+        // Only retry when the request never reached the agent. Once the response
+        // body has opened, the turn may have run and persisted server-side, so a
+        // retry would store the whole exchange a second time.
+        if (err instanceof ChatStreamUnavailableError) {
           try {
             applyResult(await askAssistant(text, convIdRef.current));
           } catch {
             showError();
           }
+        } else {
+          showError();
         }
       } finally {
         setTyping(false);

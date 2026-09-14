@@ -178,15 +178,30 @@ interface SSEEvent {
   data: string;
 }
 
-function* parseSSE(buffer: string): Generator<SSEEvent> {
-  for (const block of buffer.split("\n\n")) {
-    let event = "message";
-    const dataLines: string[] = [];
-    for (const line of block.split("\n")) {
-      if (line.startsWith("event:")) event = line.slice(6).trim();
-      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-    }
-    if (dataLines.length) yield { event, data: dataLines.join("\n") };
+// SSE frames are separated by a blank line and lines by a newline, but the spec
+// allows CRLF, LF, or bare CR for both. Our backend (sse-starlette) emits CRLF,
+// so matching only "\n\n" never finds a frame boundary — the whole stream ends up
+// as one blob whose concatenated `data:` lines fail to parse.
+const FRAME_DELIM = /\r\n\r\n|\n\n|\r\r/;
+const LINE_DELIM = /\r\n|\n|\r/;
+
+function parseFrame(frame: string): SSEEvent | null {
+  let event = "message";
+  const dataLines: string[] = [];
+  for (const line of frame.split(LINE_DELIM)) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+  }
+  return dataLines.length ? { event, data: dataLines.join("\n") } : null;
+}
+
+/** Thrown only when the request never reached the agent, so retrying is safe.
+ *  A failure after the response body opened may mean the turn already ran and
+ *  persisted — retrying then would duplicate the conversation. */
+export class ChatStreamUnavailableError extends Error {
+  constructor() {
+    super("Chat stream unavailable");
+    this.name = "ChatStreamUnavailableError";
   }
 }
 
@@ -203,7 +218,7 @@ export async function askAssistantStream(
     headers: jsonHeaders(),
     body: JSON.stringify({ session_id: getSessionId(), message, conversation_id: conversationId || undefined }),
   });
-  if (!res.ok || !res.body) throw new Error("Chat stream unavailable");
+  if (!res.ok || !res.body) throw new ChatStreamUnavailableError();
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -234,12 +249,17 @@ export async function askAssistantStream(
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    const lastBreak = buffer.lastIndexOf("\n\n");
-    if (lastBreak === -1) continue;
-    for (const evt of parseSSE(buffer.slice(0, lastBreak))) handle(evt);
-    buffer = buffer.slice(lastBreak + 2);
+    // Everything before the final delimiter is complete; the remainder may be a
+    // partial frame (even a "\r\n" split across chunks), so it stays buffered.
+    const frames = buffer.split(FRAME_DELIM);
+    buffer = frames.pop() ?? "";
+    for (const frame of frames) {
+      const evt = parseFrame(frame);
+      if (evt) handle(evt);
+    }
   }
-  for (const evt of parseSSE(buffer)) handle(evt);
+  const tail = parseFrame(buffer);
+  if (tail) handle(tail);
 
   const fullReply = nba.length ? `${reply}\n\n${nba.join("\n")}` : reply;
   return { reply: fullReply, products, conversationId: returnedConvId };

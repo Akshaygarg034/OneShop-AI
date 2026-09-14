@@ -196,7 +196,7 @@ cd backend
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # fill in values — see Configuration
-python update_catalog.py        # catalog → Supabase + Qdrant, photos → compressed WebP on Storage
+python update_catalog.py        # first run only — seeds Supabase + Qdrant and publishes product photos
 uvicorn app.main:app --reload   # → http://127.0.0.1:8000/docs
 
 # Frontend (new terminal)
@@ -206,6 +206,8 @@ npm run dev                     # → http://localhost:5173
 ```
 
 Or start Qdrant and the backend together with `docker compose up --build`.
+
+> **When to rerun `update_catalog.py`:** only after you edit `backend/data/catalog.json` — add or remove a product, change a price, swap a photo. Day-to-day development never needs it; the server reads the catalog straight from Supabase.
 
 ---
 
